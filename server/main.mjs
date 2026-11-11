@@ -5,6 +5,7 @@ import { createJuncturaClient } from "@junctura/server-client";
 import { createApp } from "./app.mjs";
 import { loadConfig } from "./config.mjs";
 import { loadPharmacyData } from "./data.mjs";
+import { createDispensingStore } from "./dispensing.mjs";
 import { createVerifier } from "./jwt.mjs";
 import { createCapabilityCaller } from "./junctura.mjs";
 
@@ -24,6 +25,7 @@ const portFlag = process.argv.indexOf("--port");
 if (portFlag !== -1) config = Object.freeze({ ...config, port: Number(process.argv[portFlag + 1]) });
 const verifier = createVerifier({ issuer: config.issuer, clientId: config.webClientId });
 let capabilities = null;
+let dispensing = null;
 if (config.junctura) {
   const client = createJuncturaClient({
     baseUrl: config.junctura.url,
@@ -31,11 +33,12 @@ if (config.junctura) {
     clientSecret: config.junctura.clientSecret,
   });
   capabilities = createCapabilityCaller({ client });
+  dispensing = createDispensingStore({ client });
 } else {
   console.warn("Junctura capability calls are disabled: JUNCTURA_URL, JUNCTURA_APP_CLIENT_ID and JUNCTURA_APP_CLIENT_SECRET are not all set.");
 }
 
-const server = createServer(createApp({ config, data, verifier, capabilities }));
+const server = createServer(createApp({ config, data, verifier, capabilities, dispensing }));
 server.listen(config.port, config.host, () => {
   console.log(`Junctura Pharmacy (${data.facility}) listening on http://${config.host}:${server.address().port}`);
 });

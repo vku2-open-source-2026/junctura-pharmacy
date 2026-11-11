@@ -4,9 +4,16 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
 import { AuthError } from "./jwt.mjs";
 import { isLowercaseUuid, isValidPrescriptionCode, parsePrescriptionQr } from "./prescription-qr.mjs";
-import { computeDispensable } from "./verify.mjs";
+import { runVerification } from "./verify.mjs";
 
 const MAX_BODY_BYTES = 4 * 1024;
+
+const API_METHODS = new Map([
+  ["/api/verify", "POST"],
+  ["/api/dispense", "POST"],
+  ["/api/refuse", "POST"],
+  ["/api/history", "GET, HEAD"],
+]);
 
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -67,9 +74,9 @@ function readJsonBody(req) {
   });
 }
 
-function verificationRequest(body) {
+function verificationRequest(body, extras = []) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
-  const keys = Object.keys(body);
+  const keys = Object.keys(body).filter(key => !extras.includes(key));
 
   if (keys.length === 1 && keys[0] === "qr" && typeof body.qr === "string") {
     return parsePrescriptionQr(body.qr);
@@ -86,7 +93,7 @@ function verificationRequest(body) {
  * built web UI. Staff are the demo accounts of this application; every other signed-in
  * person is refused.
  */
-export function createApp({ config, data, verifier, capabilities }) {
+export function createApp({ config, data, verifier, capabilities, dispensing }) {
   const base = securityHeaders(config);
 
   const send = (res, status, body, headers = {}) => {
@@ -114,15 +121,112 @@ export function createApp({ config, data, verifier, capabilities }) {
     const request = verificationRequest(parsed.body);
     if (!request) return send(res, 400, { error: "invalid-request" });
 
-    const { prescriptionCode, patient } = request;
-    const context = { purpose: "dispensing", dataSubject: patient };
-    const [prescription, allergies] = await Promise.all([
-      capabilities.call("prescription-verify", { prescriptionCode }, context),
-      capabilities.call("allergy-list", {}, context),
-    ]);
-    const checkedAt = new Date();
-    const { dispensable, blockers } = computeDispensable(prescription, allergies, checkedAt);
-    return send(res, 200, { prescriptionCode, patient, checkedAt: checkedAt.toISOString(), prescription, allergies, dispensable, blockers });
+    return send(res, 200, await runVerification({ capabilities, ...request }));
+  }
+
+  // Store and capability failures only log an error code, never patient data.
+  function storeFailure(res, error) {
+    if (error?.status === 503) {
+      console.error(error.code ?? "store-unavailable");
+      return send(res, 503, { error: "store-unavailable" });
+    }
+    console.error(error?.code ?? "internal-error");
+    return send(res, 500, { error: "internal-error" });
+  }
+
+  async function dispense(req, res, user) {
+    if (!dispensing || !capabilities) return send(res, 503, { error: "junctura-not-configured" });
+    if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+
+    const parsed = await readJsonBody(req);
+    if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+    if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
+
+    const request = verificationRequest(parsed.body, ["items"]);
+    if (!request || !Array.isArray(parsed.body.items)) return send(res, 400, { error: "invalid-request" });
+
+    try {
+      const result = await runVerification({ capabilities, ...request });
+      if (!result.dispensable) return send(res, 409, { error: "not-dispensable", blockers: result.blockers });
+
+      const history = await dispensing.list();
+      if (history.some(entry => entry.prescriptionCode === request.prescriptionCode && entry.outcome === "dispensed")) {
+        return send(res, 409, { error: "already-dispensed" });
+      }
+
+      const prescribed = new Map((result.prescription?.output?.items ?? []).map(item => [item.name, item]));
+      const seen = new Set();
+      const items = [];
+      for (const item of parsed.body.items) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return send(res, 400, { error: "items-mismatch" });
+        const { name, quantity } = item;
+        const lot = typeof item.lot === "string" ? item.lot.trim() : item.lot;
+        const prescribedItem = prescribed.get(name);
+        if (typeof name !== "string" || !prescribedItem || seen.has(name)
+          || !Number.isInteger(quantity) || quantity < 1 || quantity > prescribedItem.quantity
+          || typeof lot !== "string" || lot.length < 1 || lot.length > 40) {
+          return send(res, 400, { error: "items-mismatch" });
+        }
+        seen.add(name);
+        items.push({ name, strength: prescribedItem.strength, quantity, lot });
+      }
+      if (items.length === 0) return send(res, 400, { error: "items-mismatch" });
+
+      const entry = {
+        prescriptionCode: request.prescriptionCode,
+        patient: request.patient,
+        outcome: "dispensed",
+        items,
+        pharmacist: user.username,
+        at: new Date().toISOString(),
+      };
+      await dispensing.add(entry);
+      const { patient: omitted, ...visible } = entry;
+      return send(res, 201, visible);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function refuse(req, res, user) {
+    if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
+    if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+
+    const parsed = await readJsonBody(req);
+    if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+    if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
+
+    const request = verificationRequest(parsed.body, ["reason"]);
+    if (!request) return send(res, 400, { error: "invalid-request" });
+
+    const reason = typeof parsed.body.reason === "string" ? parsed.body.reason.trim() : "";
+    if ([...reason].length < 3 || [...reason].length > 200) return send(res, 400, { error: "invalid-request" });
+
+    try {
+      const entry = {
+        prescriptionCode: request.prescriptionCode,
+        patient: request.patient,
+        outcome: "refused",
+        reason,
+        pharmacist: user.username,
+        at: new Date().toISOString(),
+      };
+      await dispensing.add(entry);
+      const { patient: omitted, ...visible } = entry;
+      return send(res, 201, visible);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function history(req, res) {
+    if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      const items = (await dispensing.list()).map(({ patient, ...entry }) => entry);
+      return send(res, 200, { items });
+    } catch (error) {
+      return storeFailure(res, error);
+    }
   }
 
   async function api(req, res, url) {
@@ -136,9 +240,13 @@ export function createApp({ config, data, verifier, capabilities }) {
       if (!(error instanceof AuthError)) console.error(`token check failed: ${error.message}`);
       return send(res, 401, { error: "unauthenticated" }, { "www-authenticate": "Bearer" });
     }
-    if (url.pathname === "/api/verify") {
+    if (url.pathname === "/api/verify" || url.pathname === "/api/dispense"
+      || url.pathname === "/api/refuse" || url.pathname === "/api/history") {
       if (!user || user.role !== "pharmacist") return send(res, 403, { error: "not-pharmacist" });
-      return verify(req, res);
+      if (url.pathname === "/api/verify") return verify(req, res);
+      if (url.pathname === "/api/dispense") return dispense(req, res, user);
+      if (url.pathname === "/api/refuse") return refuse(req, res, user);
+      return history(req, res);
     }
     if (!user) return send(res, 403, { error: "not-pharmacy-staff" });
 
@@ -162,10 +270,9 @@ export function createApp({ config, data, verifier, capabilities }) {
     try {
       const url = new URL(req.url, "http://localhost");
       if (url.pathname === "/healthz") return send(res, 200, { status: "ok" });
-      if (url.pathname === "/api/verify") {
-        if (req.method !== "POST") return send(res, 405, { error: "method-not-allowed" }, { allow: "POST" });
-      } else if (req.method !== "GET" && req.method !== "HEAD") {
-        return send(res, 405, { error: "method-not-allowed" }, { allow: "GET, HEAD" });
+      const allowed = API_METHODS.get(url.pathname) ?? "GET, HEAD";
+      if (!allowed.split(", ").includes(req.method)) {
+        return send(res, 405, { error: "method-not-allowed" }, { allow: allowed });
       }
       if (url.pathname.startsWith("/api/")) return await api(req, res, url);
       return serveStatic(res, decodeURIComponent(url.pathname));

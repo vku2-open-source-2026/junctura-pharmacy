@@ -2,6 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
+ * Calls both capabilities for one prescription and returns the verification result
+ * the API and the dispensing route share.
+ */
+export async function runVerification({ capabilities, prescriptionCode, patient, now = new Date() }) {
+  const context = { purpose: "dispensing", dataSubject: patient };
+  const [prescription, allergies] = await Promise.all([
+    capabilities.call("prescription-verify", { prescriptionCode }, context),
+    capabilities.call("allergy-list", {}, context),
+  ]);
+  const value = typeof now === "function" ? now() : now;
+  const checkedAt = value instanceof Date ? value : new Date(value);
+  const { dispensable, blockers } = computeDispensable(prescription, allergies, checkedAt);
+  return {
+    prescriptionCode,
+    patient,
+    checkedAt: checkedAt.toISOString(),
+    prescription,
+    allergies,
+    dispensable,
+    blockers,
+  };
+}
+
+/**
  * Pure dispensing decision for one verification result. Allergies never block
  * dispensing: the pharmacist decides, but an unknown allergy state is reported.
  */
