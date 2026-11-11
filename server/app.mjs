@@ -3,6 +3,10 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
 import { AuthError } from "./jwt.mjs";
+import { isLowercaseUuid, isValidPrescriptionCode, parsePrescriptionQr } from "./prescription-qr.mjs";
+import { computeDispensable } from "./verify.mjs";
+
+const MAX_BODY_BYTES = 4 * 1024;
 
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -18,6 +22,64 @@ const securityHeaders = config => ({
     `connect-src 'self' ${new URL(config.issuer).origin}`, "img-src 'self' data:", "style-src 'self' 'unsafe-inline'",
   ].join("; "),
 });
+
+const isJsonRequest = req => {
+  const value = req.headers["content-type"];
+  return typeof value === "string" && value.split(";", 1)[0].trim().toLowerCase() === "application/json";
+};
+
+function readJsonBody(req) {
+  return new Promise(resolve => {
+    let settled = false;
+    const settle = result => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    const declared = Number(req.headers["content-length"]);
+    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+      req.resume();
+      settle({ status: 413 });
+      return;
+    }
+
+    let size = 0;
+    const chunks = [];
+    req.on("data", chunk => {
+      if (settled) return;
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        settle({ status: 413 });
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      if (settled) return;
+      try {
+        settle({ body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
+      } catch {
+        settle({ status: 400 });
+      }
+    });
+    req.on("error", () => settle({ status: 400 }));
+  });
+}
+
+function verificationRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const keys = Object.keys(body);
+
+  if (keys.length === 1 && keys[0] === "qr" && typeof body.qr === "string") {
+    return parsePrescriptionQr(body.qr);
+  }
+  if (keys.length === 2 && keys.includes("prescriptionCode") && keys.includes("patient")
+    && isValidPrescriptionCode(body.prescriptionCode) && isLowercaseUuid(body.patient)) {
+    return { prescriptionCode: body.prescriptionCode, patient: body.patient };
+  }
+  return null;
+}
 
 /**
  * Request handler of the Pharmacy server: a small JSON API behind Junctura sign-in plus the
@@ -41,6 +103,28 @@ export function createApp({ config, data, verifier, capabilities }) {
     return user ? { username: user.username, displayName: user.displayName, role: user.role } : null;
   }
 
+  async function verify(req, res) {
+    if (!capabilities) return send(res, 503, { error: "junctura-not-configured" });
+    if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+
+    const parsed = await readJsonBody(req);
+    if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+    if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
+
+    const request = verificationRequest(parsed.body);
+    if (!request) return send(res, 400, { error: "invalid-request" });
+
+    const { prescriptionCode, patient } = request;
+    const context = { purpose: "dispensing", dataSubject: patient };
+    const [prescription, allergies] = await Promise.all([
+      capabilities.call("prescription-verify", { prescriptionCode }, context),
+      capabilities.call("allergy-list", {}, context),
+    ]);
+    const checkedAt = new Date();
+    const { dispensable, blockers } = computeDispensable(prescription, allergies, checkedAt);
+    return send(res, 200, { prescriptionCode, patient, checkedAt: checkedAt.toISOString(), prescription, allergies, dispensable, blockers });
+  }
+
   async function api(req, res, url) {
     if (url.pathname === "/api/config") {
       return send(res, 200, { issuer: config.issuer, clientId: config.webClientId, facility: data.facility });
@@ -51,6 +135,10 @@ export function createApp({ config, data, verifier, capabilities }) {
     } catch (error) {
       if (!(error instanceof AuthError)) console.error(`token check failed: ${error.message}`);
       return send(res, 401, { error: "unauthenticated" }, { "www-authenticate": "Bearer" });
+    }
+    if (url.pathname === "/api/verify") {
+      if (!user || user.role !== "pharmacist") return send(res, 403, { error: "not-pharmacist" });
+      return verify(req, res);
     }
     if (!user) return send(res, 403, { error: "not-pharmacy-staff" });
 
@@ -74,7 +162,11 @@ export function createApp({ config, data, verifier, capabilities }) {
     try {
       const url = new URL(req.url, "http://localhost");
       if (url.pathname === "/healthz") return send(res, 200, { status: "ok" });
-      if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, { error: "method-not-allowed" }, { allow: "GET, HEAD" });
+      if (url.pathname === "/api/verify") {
+        if (req.method !== "POST") return send(res, 405, { error: "method-not-allowed" }, { allow: "POST" });
+      } else if (req.method !== "GET" && req.method !== "HEAD") {
+        return send(res, 405, { error: "method-not-allowed" }, { allow: "GET, HEAD" });
+      }
       if (url.pathname.startsWith("/api/")) return await api(req, res, url);
       return serveStatic(res, decodeURIComponent(url.pathname));
     } catch (error) {
