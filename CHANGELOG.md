@@ -12,3 +12,8 @@ All notable changes to Junctura Pharmacy are recorded here. The format follows
 ### Added
 
 - Khung ứng dụng: đăng nhập Junctura cho nhân viên nhà thuốc.
+- Gọi năng lực `prescription-verify` và `allergy-list` qua Junctura.
+- API xác minh đơn thuốc bằng QR hoặc mã đơn nhập tay, kèm kiểm tra dị ứng.
+- API phát thuốc theo lô, từ chối có lý do và lịch sử lưu ở kho bản ghi của Junctura.
+- Giao diện xác minh, hiển thị dị ứng, phát hoặc từ chối đơn và xem lịch sử.
+- Dockerfile, `.dockerignore` và hướng dẫn chạy bằng Docker.
