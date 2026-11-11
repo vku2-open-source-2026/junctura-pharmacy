@@ -1,0 +1,13 @@
+Junctura Pharmacy
+Copyright 2026 Junctura Contributors
+
+Original Junctura Pharmacy source code is licensed under the Apache License,
+Version 2.0. The attribution above is subject to each contributor's actual
+rights and agreement; it does not claim ownership of upstream components.
+
+External components retain their own copyright, license and notice terms.
+Dependencies are declared in package manifests and installed from their
+registries; no third-party source code has been copied into this project.
+Any data used for development or demonstration is synthetic and describes no
+real person. Patient data is exchanged through Junctura, never read from a
+local seed.

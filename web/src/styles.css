@@ -1,0 +1,5 @@
+/* SPDX-FileCopyrightText: 2026 Junctura Contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+@import "tailwindcss";
+@import "@junctura/health-ui/tokens.css";
+@source "../node_modules/@junctura/health-ui/dist/index.js";

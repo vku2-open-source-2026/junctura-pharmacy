@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Junctura Contributors
+# SPDX-License-Identifier: Apache-2.0
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Dependencies and build output (never committed: contest rule on bundled libraries)
+node_modules/
+dist/
+coverage/
+*.tgz
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+.junctura/
+
+# junctura-health checkout used only by CI tests (never committed)
+.junctura-health/
+
+# Release output
+release/

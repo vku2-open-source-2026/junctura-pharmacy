@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Junctura Contributors
+# SPDX-License-Identifier: Apache-2.0
+version = 1
+
+# Files that cannot carry a comment (JSON, plain data, NOTICE, the .node-version pin)
+# are annotated here. Every other tracked file carries an inline SPDX header, which
+# scripts/check.mjs enforces; license texts under LICENSES/ and LICENSE are exempt.
+
+[[annotations]]
+path = [
+  "NOTICE",
+  ".node-version",
+  "**/*.json",
+]
+SPDX-FileCopyrightText = "2026 Junctura Contributors"
+SPDX-License-Identifier = "Apache-2.0"

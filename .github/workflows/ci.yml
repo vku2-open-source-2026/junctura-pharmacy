@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Junctura Contributors
+# SPDX-License-Identifier: Apache-2.0
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Check SPDX headers, license files and dependency hygiene
+        run: npm run check
+      - name: Install REUSE SPDX checker
+        run: python -m pip install -r requirements-reuse.txt
+      - name: Verify REUSE/SPDX license metadata
+        run: npm run check:reuse
+      - name: Check out junctura-health (synthetic data used by the server tests)
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: vku2-open-source-2026/junctura-health
+          ref: 73eaf784d73f7eb57aa61c0ad1acaa91f0419eda
+          path: .junctura-health
+          persist-credentials: false
+      - name: Run server tests
+        env:
+          JUNCTURA_HEALTH_DIR: .junctura-health
+        run: npm test
+      - name: Install web dependencies from the lockfile
+        run: npm run web:install
+      - name: Run web tests
+        run: npm run web:test
+      - name: Build the web UI
+        run: npm run build
