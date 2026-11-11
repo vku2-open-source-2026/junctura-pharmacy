@@ -1,15 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import { AppShell, Badge, Button, ErrorState, PermissionState, SignInPage, Skeleton, type NavGroup } from "@junctura/health-ui";
-import { Home as HomeIcon } from "lucide-react";
+import { History as HistoryIcon, ScanLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, getConfig, getMe } from "./api";
 import { buildLogoutUrl, clearSession, completeLogin, loadSession, startLogin } from "./auth";
-import { Home } from "./Home";
+import { History } from "./History";
 import { Landing } from "./Landing";
-import { useLocation } from "./router";
+import { navigate, useLocation } from "./router";
 import { NotFound, SessionProvider } from "./session";
 import type { Me, PublicConfig } from "./types";
+import { Verify } from "./Verify";
 
 type State =
   | { kind: "loading" }
@@ -21,8 +22,16 @@ type State =
 const ROLE_LABEL: Record<string, string> = { pharmacist: "Dược sĩ" };
 
 const NAV: NavGroup[] = [
-  { label: "Nhà thuốc", items: [{ id: "/", label: "Trang chủ", icon: <HomeIcon aria-hidden className="size-4" /> }] },
+  {
+    label: "Nhà thuốc",
+    items: [
+      { id: "/", label: "Xác minh đơn", icon: <ScanLine aria-hidden className="size-4" /> },
+      { id: "/lich-su", label: "Lịch sử", icon: <HistoryIcon aria-hidden className="size-4" /> },
+    ],
+  },
 ];
+
+const CURRENT: Record<string, string> = { "/": "/", "/lich-su": "/lich-su" };
 
 export function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
@@ -84,11 +93,11 @@ export function App() {
   }
 
   const me = state.me;
-  const page = path === "/" ? <Home me={me} /> : <NotFound />;
+  const page = path === "/" ? <Verify /> : path === "/lich-su" ? <History /> : <NotFound />;
 
   return (
     <SessionProvider value={{ settings: settings!, facility: config!.facility, expire, setCrumbs }}>
-      <AppShell product="Pharmacy" nav={NAV} current={path === "/" ? "/" : ""} onNavigate={() => location.assign("/")} breadcrumbs={crumbs}
+      <AppShell product="Pharmacy" nav={NAV} current={CURRENT[path] ?? ""} onNavigate={navigate} breadcrumbs={crumbs}
         status={<Badge tone="neutral">Bản demo</Badge>}
         unit={{ name: "Junctura Pharmacy", stations: [{ id: "main", name: config!.facility }] }}
         user={{ name: me.displayName, role: ROLE_LABEL[me.role] ?? me.role }} onSignOut={signOut}>
