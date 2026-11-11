@@ -25,6 +25,12 @@ export function loadConfig({ env = process.env, cwd = process.cwd() } = {}) {
   }
   const port = Number(get("PORT") ?? get("WEB_PORT") ?? DEFAULT_PORT);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new RangeError("PORT must be a valid port number");
+  const juncturaUrl = get("JUNCTURA_URL");
+  const juncturaClientId = get("JUNCTURA_APP_CLIENT_ID");
+  const juncturaClientSecret = get("JUNCTURA_APP_CLIENT_SECRET");
+  const junctura = juncturaUrl && juncturaClientId && juncturaClientSecret
+    ? Object.freeze({ url: juncturaUrl, clientId: juncturaClientId, clientSecret: juncturaClientSecret })
+    : null;
   return Object.freeze({
     issuer: issuer.replace(/\/+$/, ""),
     webClientId,
@@ -32,5 +38,6 @@ export function loadConfig({ env = process.env, cwd = process.cwd() } = {}) {
     host: get("HOST") ?? "127.0.0.1",
     healthDir,
     staticDir: resolve(cwd, get("PHARMACY_STATIC_DIR") ?? "web/dist"),
+    junctura,
   });
 }

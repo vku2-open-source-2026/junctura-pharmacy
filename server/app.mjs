@@ -24,7 +24,7 @@ const securityHeaders = config => ({
  * built web UI. Staff are the demo accounts of this application; every other signed-in
  * person is refused.
  */
-export function createApp({ config, data, verifier }) {
+export function createApp({ config, data, verifier, capabilities }) {
   const base = securityHeaders(config);
 
   const send = (res, status, body, headers = {}) => {

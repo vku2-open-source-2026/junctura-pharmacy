@@ -26,5 +26,9 @@
     "check": "node scripts/check.mjs",
     "check:reuse": "node scripts/check-reuse.mjs",
     "test": "node --test \"tests/*.test.mjs\""
+  },
+  "dependencies": {
+    "@junctura/health-contracts": "^1.1.0",
+    "@junctura/server-client": "^0.1.0"
   }
 }
