@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import {
-  AlertBanner, AllergyStatus, Badge, Button, Card, DataTable, Dialog, ErrorState, PageHeader,
-  PermissionState, SourceBadge, TextAreaField, TextField, formatDate, formatDateTime, type Column,
+  AlertBanner, AllergyStatus, Badge, Button, Card, ConfirmDialog, DataTable, Dialog, ErrorState, PageHeader,
+  PermissionState, SelectField, SourceBadge, TextAreaField, TextField, formatDate, formatDateTime, type Column,
 } from "@junctura/health-ui";
 import { ScanLine } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { ApiError, dispense, refuse, verifyPrescription } from "./api";
+import { ApiError, dispense, getStock, refuse, verifyPrescription } from "./api";
 import { QrScanner } from "./QrScanner";
 import { useSession } from "./session";
 import type {
-  AllergyConflict, Blocker, CapabilityStatus, DispenseItem, PrescriptionItem, VerificationResult, VerifyInput,
+  AllergyConflict, Blocker, CapabilityStatus, DispenseItem, PrescriptionItem, StockItem, VerificationResult, VerifyInput,
 } from "./types";
 
 const BLOCKER_TEXT: Record<Blocker, string> = {
@@ -22,6 +22,23 @@ const BLOCKER_TEXT: Record<Blocker, string> = {
 };
 
 const SEVERITY_LABEL: Record<string, string> = { mild: "nhẹ", moderate: "trung bình", severe: "nặng" };
+const MANUAL_LOT = "__manual__";
+
+function matchingLots(stock: StockItem[] | null, item: PrescriptionItem): StockItem[] {
+  return (stock ?? [])
+    .filter(entry => entry.name === item.name && entry.status !== "expired" && entry.onHand > 0)
+    .sort((left, right) => Date.parse(left.expiresAt) - Date.parse(right.expiresAt));
+}
+
+function fefoLot(stock: StockItem[] | null, item: PrescriptionItem): string {
+  const lots = matchingLots(stock, item);
+  return (lots.find(entry => entry.onHand >= item.quantity) ?? lots[0])?.lot ?? "";
+}
+
+function lotOptionLabel(entry: StockItem, required: number): string {
+  const label = `${entry.lot} · còn ${entry.onHand} · hạn ${formatDate(entry.expiresAt)}`;
+  return entry.onHand < required ? `${label} (không đủ)` : label;
+}
 
 function blockerText(blocker: string): string {
   return BLOCKER_TEXT[blocker as Blocker] ?? "Không thể phát đơn này.";
@@ -100,6 +117,9 @@ export function Verify() {
   const [formError, setFormError] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [lots, setLots] = useState<Record<string, string>>({});
+  const [manualLots, setManualLots] = useState<Record<string, boolean>>({});
+  const [stock, setStock] = useState<StockItem[] | null>(null);
+  const [confirmation, setConfirmation] = useState<{ items: DispenseItem[]; overrideReason: string } | null>(null);
   const [refusing, setRefusing] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | null>(null);
@@ -127,6 +147,8 @@ export function Verify() {
     setBusy(true);
     setMessage(null);
     setFormError(null);
+    setStock(null);
+    setConfirmation(null);
     try {
       const next = await verifyPrescription(settings, input);
       setResult(next);
@@ -137,7 +159,17 @@ export function Verify() {
       const items = next.prescription.status === "ok" ? next.prescription.output?.items ?? [] : [];
       setQuantities(Object.fromEntries(items.map(item => [item.name, String(item.quantity)])));
       setLots(Object.fromEntries(items.map(item => [item.name, ""])));
+      setManualLots({});
       setOverride("");
+      if (next.dispensable) {
+        try {
+          const inventory = await getStock(settings);
+          setStock(inventory.items);
+        } catch (stockError) {
+          if (stockError instanceof ApiError && stockError.status === 401) expire();
+          setStock(null);
+        }
+      }
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) expire();
       setResult(null);
@@ -175,7 +207,9 @@ export function Verify() {
 
     for (const item of items) {
       const quantity = Number(quantities[item.name]);
-      const lot = (lots[item.name] ?? "").trim();
+      const stockLots = matchingLots(stock, item);
+      const manual = stockLots.length === 0 || manualLots[item.name];
+      const lot = manual ? (lots[item.name] ?? "").trim() : (lots[item.name] || fefoLot(stock, item)).trim();
       if (!Number.isInteger(quantity) || quantity < 1 || quantity > item.quantity) {
         setFormError(`Số lượng của ${item.name} phải từ 1 đến ${item.quantity}.`);
         return;
@@ -193,14 +227,25 @@ export function Verify() {
     }
 
     setFormError(null);
+    setConfirmation({ items: payload, overrideReason: conflicts.length > 0 ? overrideReason : "" });
+  };
+
+  const sendDispense = async () => {
+    if (!result || !request || !confirmation) return;
     setBusy(true);
     try {
-      await dispense(settings, { ...request, items: payload, ...(conflicts.length > 0 && { allergyOverride: overrideReason }) });
+      await dispense(settings, {
+        ...request,
+        items: confirmation.items,
+        ...(confirmation.overrideReason && { allergyOverride: confirmation.overrideReason }),
+      });
       setMessage({ tone: "ok", text: `Đã phát thuốc cho đơn ${result.prescriptionCode}.` });
+      setConfirmation(null);
       setResult(null);
       setRequest(null);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) expire();
+      setConfirmation(null);
       setFormError(dispenseError(error));
     } finally {
       setBusy(false);
@@ -368,29 +413,62 @@ export function Verify() {
             <Card title="Phát thuốc">
               <form className="space-y-4" onSubmit={submitDispense}>
                 <ul className="space-y-4">
-                  {dispenseItems.map(item => (
-                    <li key={item.name} className="rounded-lg border border-line px-4 py-3">
-                      <p className="font-medium text-ink">{item.name} <span className="font-normal text-ink-2">{item.strength}</span></p>
-                      <p className="text-sm text-muted">Kê {item.quantity} · {item.instructions}</p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <TextField
-                          label={`Số lượng ${item.name}`}
-                          type="number"
-                          min={1}
-                          max={item.quantity}
-                          value={quantities[item.name] ?? String(item.quantity)}
-                          onChange={event => setQuantities(current => ({ ...current, [item.name]: event.target.value }))}
-                        />
-                        <TextField
-                          label={`Số lô ${item.name}`}
-                          aria-required
-                          maxLength={40}
-                          value={lots[item.name] ?? ""}
-                          onChange={event => setLots(current => ({ ...current, [item.name]: event.target.value }))}
-                        />
-                      </div>
-                    </li>
-                  ))}
+                  {dispenseItems.map(item => {
+                    const stockLots = matchingLots(stock, item);
+                    const manual = stockLots.length === 0 || manualLots[item.name];
+                    return (
+                      <li key={item.name} className="rounded-lg border border-line px-4 py-3">
+                        <p className="font-medium text-ink">{item.name} <span className="font-normal text-ink-2">{item.strength}</span></p>
+                        <p className="text-sm text-muted">Kê {item.quantity} · {item.instructions}</p>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <TextField
+                            label={`Số lượng ${item.name}`}
+                            type="number"
+                            min={1}
+                            max={item.quantity}
+                            value={quantities[item.name] ?? String(item.quantity)}
+                            onChange={event => setQuantities(current => ({ ...current, [item.name]: event.target.value }))}
+                          />
+                          <div>
+                            {stockLots.length > 0 && (
+                              <SelectField
+                                label={`Lô ${item.name}`}
+                                aria-required
+                                value={manual ? MANUAL_LOT : (lots[item.name] || fefoLot(stock, item))}
+                                options={[
+                                  ...stockLots.map(entry => ({ value: entry.lot, label: lotOptionLabel(entry, item.quantity) })),
+                                  { value: MANUAL_LOT, label: "Lô khác (nhập tay)" },
+                                ]}
+                                onChange={event => {
+                                  const value = event.target.value;
+                                  setLots(current => ({ ...current, [item.name]: value === MANUAL_LOT ? "" : value }));
+                                  setManualLots(current => ({ ...current, [item.name]: value === MANUAL_LOT }));
+                                  setFormError(null);
+                                }}
+                              />
+                            )}
+                            {manual && (
+                              <div className={stockLots.length > 0 ? "mt-3" : undefined}>
+                                <TextField
+                                  label={`Số lô ${item.name}`}
+                                  aria-required
+                                  maxLength={40}
+                                  value={lots[item.name] ?? ""}
+                                  onChange={event => {
+                                    setLots(current => ({ ...current, [item.name]: event.target.value }));
+                                    setFormError(null);
+                                  }}
+                                />
+                                {stock !== null && stockLots.length === 0 && (
+                                  <p className="mt-1 text-sm text-muted">Kho chưa có lô thuốc này</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
                 {conflicts.length > 0 && (
                   <TextAreaField
@@ -410,6 +488,29 @@ export function Verify() {
         </div>
       )}
 
+      <ConfirmDialog
+        open={confirmation !== null}
+        title={result ? `Phát thuốc cho đơn ${result.prescriptionCode}?` : "Phát thuốc?"}
+        cancelLabel="Quay lại"
+        confirmLabel="Phát thuốc"
+        loading={busy}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={sendDispense}
+        description={confirmation && (
+          <div className="space-y-3">
+            <ul className="list-disc space-y-1 pl-5">
+              {confirmation.items.map(item => (
+                <li key={item.name}>{item.name}: số lượng {item.quantity}, lô {item.lot}</li>
+              ))}
+            </ul>
+            {confirmation.overrideReason && (
+              <p>Lý do vẫn phát thuốc trùng dị ứng: {confirmation.overrideReason}</p>
+            )}
+            <p>Sau khi phát, đơn được ghi là đã phát tại nhà thuốc và không phát lại được.</p>
+          </div>
+        )}
+      />
+
       <Dialog
         open={refusing}
         title="Từ chối phát thuốc"
@@ -417,7 +518,7 @@ export function Verify() {
         footer={(
           <>
             <Button type="button" variant="secondary" disabled={busy} onClick={() => setRefusing(false)}>Huỷ</Button>
-            <Button type="button" variant="danger" loading={busy} onClick={submitRefuse}>Gửi từ chối</Button>
+            <Button type="button" variant="danger" loading={busy} onClick={submitRefuse}>Từ chối phát</Button>
           </>
         )}
       >

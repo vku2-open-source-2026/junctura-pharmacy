@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { dispense, refuse, verifyPrescription } from "./api";
+import { dispense, getStock, refuse, verifyPrescription } from "./api";
 import { SessionProvider } from "./session";
 import type { VerificationResult } from "./types";
 import { Verify } from "./Verify";
@@ -14,12 +14,14 @@ vi.mock("./api", async importOriginal => ({
   verifyPrescription: vi.fn(),
   dispense: vi.fn(),
   refuse: vi.fn(),
+  getStock: vi.fn(),
 }));
 
 const mocked = {
   verify: vi.mocked(verifyPrescription),
   dispense: vi.mocked(dispense),
   refuse: vi.mocked(refuse),
+  getStock: vi.mocked(getStock),
 };
 
 const QR = "JH1|RX|DT-2026-004521|0a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d";
@@ -60,6 +62,7 @@ async function enterQr(value = QR) {
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal() { this.open = true; };
   HTMLDialogElement.prototype.close = function close() { this.open = false; this.dispatchEvent(new Event("close")); };
+  mocked.getStock.mockResolvedValue({ items: [], counts: { low: 0, out: 0, expiring: 0, expired: 0 } });
 });
 
 afterEach(() => {
@@ -128,6 +131,7 @@ describe("verify screen", () => {
     await userEvent.type(await screen.findByLabelText(/Số lô Clopidogrel/), "LOT-A");
     await userEvent.type(screen.getByLabelText(/Số lô Aspirin/), "LOT-B");
     await userEvent.click(screen.getByRole("button", { name: "Xác nhận phát thuốc" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Phát thuốc" }));
     await waitFor(() => expect(mocked.dispense).toHaveBeenCalledWith(session.settings, {
       qr: QR,
       items: [{ name: "Clopidogrel", quantity: 30, lot: "LOT-A" }, { name: "Aspirin", quantity: 10, lot: "LOT-B" }],
@@ -159,7 +163,8 @@ describe("verify screen", () => {
     await enterQr();
     await userEvent.click(await screen.findByRole("button", { name: "Từ chối phát" }));
     await userEvent.type(screen.getByLabelText(/Lý do từ chối/), "Sai liều");
-    await userEvent.click(screen.getByRole("button", { name: "Gửi từ chối" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Từ chối phát" }));
     await waitFor(() => expect(mocked.refuse).toHaveBeenCalledWith(session.settings, { qr: QR, reason: "Sai liều" }));
   });
 });

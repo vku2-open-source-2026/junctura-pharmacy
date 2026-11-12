@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { dispense, verifyPrescription } from "./api";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { dispense, getStock, verifyPrescription } from "./api";
 import { SessionProvider } from "./session";
 import type { VerificationResult } from "./types";
 import { Verify } from "./Verify";
@@ -13,6 +13,7 @@ vi.mock("./api", async importOriginal => ({
   ...(await importOriginal<typeof import("./api")>()),
   verifyPrescription: vi.fn(),
   dispense: vi.fn(),
+  getStock: vi.fn(),
 }));
 
 const QR = "JH1|RX|DT-2026-004521|0a1b2c3d-4e5f-4a6b-8c7d-8e9f0a1b2c3d";
@@ -39,6 +40,12 @@ const result: VerificationResult = {
 };
 
 const session = { settings: { issuer: "https://id.test", clientId: "c" }, facility: "Nhà thuốc test", expire: () => {}, setCrumbs: () => {} };
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() { this.open = true; };
+  HTMLDialogElement.prototype.close = function close() { this.open = false; this.dispatchEvent(new Event("close")); };
+  vi.mocked(getStock).mockResolvedValue({ items: [], counts: { low: 0, out: 0, expiring: 0, expired: 0 } });
+});
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
@@ -70,6 +77,7 @@ describe("allergy conflicts", () => {
     await userEvent.type(screen.getByLabelText("Số lô Amoxicillin"), "LOT-06-A");
     await userEvent.type(screen.getByLabelText(/Lý do vẫn phát thuốc trùng dị ứng/), "Bác sĩ kê đơn đã xác nhận qua điện thoại");
     await userEvent.click(screen.getByRole("button", { name: "Xác nhận phát thuốc" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Phát thuốc" }));
     await waitFor(() => expect(vi.mocked(dispense)).toHaveBeenCalledWith(session.settings, {
       qr: QR,
       items: [{ name: "Amoxicillin", quantity: 21, lot: "LOT-06-A" }],
