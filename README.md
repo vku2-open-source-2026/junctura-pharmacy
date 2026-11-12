@@ -25,9 +25,14 @@ Pharmacy không gọi thẳng ứng dụng khác và không đọc database hay 
 ## Hiện có
 
 - **Đăng nhập bằng Junctura** (OpenID Connect, PKCE): chỉ nhân viên nhà thuốc (tài khoản của ứng dụng này) xem được trang chủ; người khác nhận 403.
-- Trang chủ hiển thị tên dược sĩ đang đăng nhập và nói rõ chức năng xác minh đơn thuốc đang được xây dựng.
+- **Xác minh đơn thuốc** bằng mã QR hoặc nhập tay: gọi `prescription-verify` và `allergy-list` qua Junctura, hiển thị dị ứng trước khi phát thuốc.
+- **Phát thuốc theo lô** và **từ chối có lý do**; mỗi thao tác được ghi vào lịch sử lưu ở kho bản ghi của Junctura.
+- **Lịch sử** các đơn đã phát và đã từ chối.
 
-Chưa có: xác minh đơn thuốc, phát thuốc và kho (xem [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues)).
+## Chưa có
+
+- Tab Nhật ký, tab Kho và quét mã bằng camera (hiện nhập mã QR hoặc mã đơn bằng tay).
+- Dấu "đã phát" chỉ được ghi ở nhà thuốc; bệnh viện chưa được báo lại khi đơn đã phát.
 
 ## Yêu cầu
 
@@ -55,6 +60,24 @@ npm start
 Mở <http://localhost:5184> và đăng nhập bằng `duocsi.nhathuoc`. Mật khẩu demo nằm trong `.junctura/demo/accounts.env` của junctura-health. Máy chủ đọc thông tin kết nối từ `.junctura/demo/junctura-pharmacy.env` do `demo:setup` tạo (xem [`.env.example`](.env.example)); chạy mà thiếu thì nó báo rõ biến nào cần.
 
 Khi sửa giao diện, chạy hai tiến trình: `npm run dev:server` (API ở cổng 5194) và `npm run dev` (giao diện ở cổng 5184, tự chuyển `/api` sang cổng 5194).
+
+## Chạy bằng Docker
+
+Image chép sẵn giao diện đã build, đọc `junctura-health` chỉ đọc tại `/junctura-health` và nhận cấu hình `JUNCTURA_*` qua `--env-file`:
+
+```sh
+docker build -t junctura-pharmacy:dev .
+docker run --rm -p 5184:5184 \
+  -v "$(pwd)/../junctura-health:/junctura-health:ro" \
+  --env-file ../junctura-health/.junctura/demo/junctura-pharmacy.env \
+  junctura-pharmacy:dev
+```
+
+Mở <http://localhost:5184>. Nếu `JUNCTURA_URL` trỏ tới Junctura đang chạy trên máy chủ, thêm `--add-host=host.docker.internal:host-gateway` và đặt `JUNCTURA_URL` trong env-file cho phù hợp; khi dùng chung compose với junctura-health, dùng địa chỉ dịch vụ trong mạng compose.
+
+## Mã QR trên đơn
+
+Quy ước tạm (sẽ chuyển vào bộ phân tích dùng chung khi `@junctura/health-contracts` có): `JH1|RX|<mã đơn>|<mã người bệnh>`. Trong đó `<mã đơn>` dài 1–32 ký tự và không chứa `|`, còn `<mã người bệnh>` là UUID chữ thường, ví dụ `JH1|RX|DT-2026-004521|3f8a2c1e-9b4d-4c7a-8e2f-1a2b3c4d5e6f`.
 
 ## Đóng góp
 

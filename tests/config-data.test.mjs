@@ -28,9 +28,43 @@ test("config reads the demo credentials file and lets the environment override i
   assert.equal(config.host, "127.0.0.1");
   assert.equal(config.staticDir, resolve(dir, "web/dist"));
   assert.equal(JSON.stringify(config).includes("never-exposed"), false, "the backend client secret is not part of the configuration");
+  assert.equal(config.junctura, null, "capability calls stay disabled without all three Junctura variables");
   assert.equal(loadConfig({ env: { JUNCTURA_PHARMACY_ENV: file, PORT: "6000" }, cwd: dir }).port, 6000);
   assert.equal(loadConfig({ env: { JUNCTURA_PHARMACY_ENV: file, PHARMACY_STATIC_DIR: "public" }, cwd: dir }).staticDir, resolve(dir, "public"));
   assert.throws(() => loadConfig({ env: { JUNCTURA_PHARMACY_ENV: file, PORT: "x" }, cwd: dir }), /PORT/);
+});
+
+test("config enables Junctura capability calls only when all three variables are present", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pharmacy-junctura-"));
+  const file = join(dir, "pharmacy.env");
+  const base = "JUNCTURA_ISSUER=https://id.example.test/identity/realms/junctura\nJUNCTURA_WEB_CLIENT_ID=health-pharmacy-web\n";
+  const junctura = "JUNCTURA_URL=https://gateway.example.test\nJUNCTURA_APP_CLIENT_ID=health-pharmacy-server\nJUNCTURA_APP_CLIENT_SECRET=server-secret\n";
+
+  writeFileSync(file, `${base}JUNCTURA_URL=https://gateway.example.test\nJUNCTURA_APP_CLIENT_ID=health-pharmacy-server\n`);
+  assert.equal(loadConfig({ env: { JUNCTURA_PHARMACY_ENV: file }, cwd: dir }).junctura, null);
+
+  writeFileSync(file, base + junctura);
+  const config = loadConfig({ env: { JUNCTURA_PHARMACY_ENV: file }, cwd: dir });
+  assert.deepEqual(config.junctura, {
+    url: "https://gateway.example.test",
+    clientId: "health-pharmacy-server",
+    clientSecret: "server-secret",
+  });
+
+  const fromEnv = loadConfig({
+    env: {
+      JUNCTURA_PHARMACY_ENV: file,
+      JUNCTURA_URL: "https://other-gateway.example.test",
+      JUNCTURA_APP_CLIENT_ID: "other-client",
+      JUNCTURA_APP_CLIENT_SECRET: "other-secret",
+    },
+    cwd: dir,
+  });
+  assert.deepEqual(fromEnv.junctura, {
+    url: "https://other-gateway.example.test",
+    clientId: "other-client",
+    clientSecret: "other-secret",
+  });
 });
 
 test("pharmacy data keeps only this application's staff and no patient data", () => {
