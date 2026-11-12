@@ -4,6 +4,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
 import { AuthError } from "./jwt.mjs";
 import { buildOverview } from "./overview.mjs";
+import { buildReport, reportCsv, reportRange } from "./report.mjs";
 import { isLowercaseUuid, isValidPrescriptionCode, parsePrescriptionQr } from "./prescription-qr.mjs";
 import { runVerification } from "./verify.mjs";
 
@@ -19,6 +20,8 @@ const API_METHODS = new Map([
   ["/api/stock/adjust", "POST"],
   ["/api/overview", "GET, HEAD"],
   ["/api/audit", "GET, HEAD"],
+  ["/api/report", "GET, HEAD"],
+  ["/api/report.csv", "GET, HEAD"],
 ]);
 
 const HISTORY_ITEM = /^\/api\/history\/([A-Za-z0-9_-]{1,80})$/;
@@ -314,6 +317,27 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     }
   }
 
+  async function reportRoute(req, res, url) {
+    if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
+    const range = reportRange({ from: url.searchParams.get("from") ?? undefined, to: url.searchParams.get("to") ?? undefined });
+    if (!range) return send(res, 400, { error: "invalid-range" });
+    try {
+      const [history, calls] = await Promise.all([
+        dispensing.list(),
+        callLog ? callLog.list().catch(() => []) : [],
+      ]);
+      const report = buildReport({ range, history, calls });
+      if (url.pathname.endsWith(".csv")) {
+        res.writeHead(200, { ...base, "cache-control": "no-store", "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="bao-cao-nha-thuoc-${range.from}-${range.to}.csv"` });
+        return res.end(reportCsv(report));
+      }
+      return send(res, 200, report);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
   async function auditRoute(req, res) {
     if (!staffLog) return send(res, 503, { error: "junctura-not-configured" });
     try {
@@ -434,6 +458,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       if (!user || user.role !== "pharmacist") return send(res, 403, { error: "not-pharmacist" });
       if (historyMatch) return historyItem(req, res, historyMatch[1]);
       if (url.pathname === "/api/audit") return auditRoute(req, res);
+      if (url.pathname === "/api/report" || url.pathname === "/api/report.csv") return reportRoute(req, res, url);
       if (url.pathname === "/api/verify") return verify(req, res, user);
       if (url.pathname === "/api/dispense") return dispense(req, res, user);
       if (url.pathname === "/api/refuse") return refuse(req, res, user);
