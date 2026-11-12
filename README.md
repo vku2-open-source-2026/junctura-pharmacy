@@ -28,10 +28,13 @@ Pharmacy không gọi thẳng ứng dụng khác và không đọc database hay 
 - **Xác minh đơn thuốc** bằng mã QR hoặc nhập tay: gọi `prescription-verify` và `allergy-list` qua Junctura, hiển thị dị ứng trước khi phát thuốc.
 - **Phát thuốc theo lô** và **từ chối có lý do**; mỗi thao tác được ghi vào lịch sử lưu ở kho bản ghi của Junctura.
 - **Lịch sử** các đơn đã phát và đã từ chối.
+- **Kho** theo lô: tồn kho = số đã nhập trừ số đã phát; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô mới. Máy chủ từ chối phát từ lô đã hết hạn hoặc không đủ hàng. Nạp kho mẫu bằng `npm run seed:stock`.
+- **Nhật ký** các lần nhà thuốc gọi Junctura (năng lực, mục đích, kết quả, dược sĩ, thời điểm); không lưu thông tin người bệnh.
 
 ## Chưa có
 
-- Tab Nhật ký, tab Kho và quét mã bằng camera (hiện nhập mã QR hoặc mã đơn bằng tay).
+- Quét mã bằng camera (hiện dùng máy quét gõ như bàn phím, hoặc nhập tay).
+- Kho bản ghi của Junctura chỉ liệt kê 100 bản ghi mới nhất mỗi loại, nên lịch sử, nhật ký và kho chỉ tính trong phạm vi đó.
 - Dấu "đã phát" chỉ được ghi ở nhà thuốc; bệnh viện chưa được báo lại khi đơn đã phát.
 
 ## Yêu cầu
