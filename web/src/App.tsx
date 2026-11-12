@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { AppShell, Badge, Button, ErrorState, PermissionState, SignInPage, Skeleton, type NavGroup } from "@junctura/health-ui";
+import { AppShell, Button, ErrorState, PermissionState, SignInPage, Skeleton, type NavGroup } from "@junctura/health-ui";
 import { BarChart3, ClipboardList, History as HistoryIcon, LayoutDashboard, Package, ScanLine, Settings as SettingsIcon, UserCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, getConfig, getHistory, getMe, getStock } from "./api";
@@ -156,7 +156,6 @@ export function App() {
   return (
     <SessionProvider value={{ settings: settings!, facility: config!.facility, expire, setCrumbs }}>
       <AppShell product="Pharmacy" nav={NAV} current={historyMatch ? "/lich-su" : CURRENT[path] ?? ""} onNavigate={navigate} breadcrumbs={crumbs}
-        status={<Badge tone="neutral">Bản demo</Badge>}
         unit={{ name: "Junctura Pharmacy", stations: [{ id: "main", name: config!.facility }] }}
         user={{ name: me.displayName, role: ROLE_LABEL[me.role] ?? me.role }} onSignOut={signOut}
         search={{

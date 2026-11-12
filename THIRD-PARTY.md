@@ -55,6 +55,6 @@ Các gói MPL-2.0 là công cụ biên dịch (như `lightningcss`), được d�
 | --- | --- | --- |
 | Danh sách nhân viên nhà thuốc | `seed/data/accounts.json` của [junctura-health](https://github.com/vku2-open-source-2026/junctura-health) | **Giả lập hoàn toàn** |
 | Kho thuốc mẫu (`npm run seed:stock`) | Danh mục thuốc dùng chung `seed/catalog.mjs` của junctura-health | Số lượng và hạn dùng do script tạo |
-| Bảng nhóm dị ứng (`server/allergy-check.mjs`) | Danh sách ngắn do dự án tự soạn cho bản demo | Không phải tài liệu tra cứu chuyên môn |
+| Bảng nhóm dị ứng (`server/allergy-check.mjs`) | Danh sách ngắn do dự án tự soạn | Không phải tài liệu tra cứu chuyên môn |
 
 Đơn thuốc và dị ứng của người bệnh không nằm trong repo: Pharmacy nhận chúng qua Junctura khi người bệnh đồng ý.

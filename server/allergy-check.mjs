@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * A small safety net for the demo, NOT a drug-interaction database: it flags medicines
+ * A small safety net, NOT a drug-interaction database: it flags medicines
  * on a prescription that share a name or a well-known allergy class with an allergy the
  * patient has on record. The pharmacist still decides; the list only makes the risk
  * visible and forces a written reason before dispensing.

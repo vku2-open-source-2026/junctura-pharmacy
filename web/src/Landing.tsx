@@ -58,7 +58,7 @@ export const landingProps = (facility?: string): Omit<LandingProps, "onSignIn"> 
   signInLabel: "Đăng nhập với Junctura",
   headline: "Xác minh đơn trong vài giây, cảnh báo dị ứng trước khi phát",
   lead: "Quét mã trên đơn hoặc nhập tay mã đơn và mã người bệnh để biết đơn còn hợp lệ không, đã phát chưa và người bệnh có dị ứng nào. Dữ liệu đến từ bệnh viện và trạm y tế qua Junctura, chỉ khi người bệnh đồng ý và đúng mục đích phát thuốc.",
-  note: facility ? `${facility}. Dữ liệu trong bản demo là dữ liệu giả lập.` : "Dữ liệu trong bản demo là dữ liệu giả lập.",
+  note: facility ? `${facility}. Dữ liệu là dữ liệu giả lập.` : "Dữ liệu là dữ liệu giả lập.",
   hero: <HeroPicture />,
   benefits: {
     title: "Ba việc quan trọng trước khi phát thuốc",
@@ -181,7 +181,7 @@ export const landingProps = (facility?: string): Omit<LandingProps, "onSignIn"> 
       { label: "Báo lỗi", href: `${SOURCE}/issues` },
       { label: "Giấy phép", href: "https://www.apache.org/licenses/LICENSE-2.0" },
     ],
-    note: "Bản demo · dữ liệu giả lập",
+    note: "Dữ liệu giả lập",
   },
 });
 

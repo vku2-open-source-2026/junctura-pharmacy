@@ -3,7 +3,7 @@
 
 # Chính sách bảo mật
 
-Junctura Pharmacy nhận đơn thuốc và danh sách dị ứng của người bệnh (ở bản demo là dữ liệu giả lập) và quyết định việc phát thuốc, nên lỗi bảo mật và lỗi an toàn được coi trọng hơn lỗi thông thường.
+Junctura Pharmacy nhận đơn thuốc và danh sách dị ứng của người bệnh (hiện là dữ liệu giả lập) và quyết định việc phát thuốc, nên lỗi bảo mật và lỗi an toàn được coi trọng hơn lỗi thông thường.
 
 ## Phiên bản được hỗ trợ
 
@@ -33,10 +33,10 @@ Nhóm là nhóm sinh viên nên không cam kết thời hạn cố định, như
 
 **Ngoài phạm vi:** lỗi chỉ xảy ra khi cố tình cấu hình thiếu an toàn (ví dụ để lộ `JUNCTURA_APP_CLIENT_SECRET`, tắt HTTPS ở môi trường công khai); tấn công từ chối dịch vụ bằng lưu lượng lớn; lỗi trong thư viện bên thứ ba chưa có bản sửa (hãy báo cho tác giả thư viện); dữ liệu mẫu (đều là giả lập, không có người thật).
 
-**Lưu ý về cảnh báo dị ứng:** bảng nhóm dị ứng trong `server/allergy-check.mjs` là lưới an toàn cho bản demo, không phải cơ sở dữ liệu tương tác thuốc. Một trường hợp cảnh báo bị bỏ sót được coi là lỗi an toàn và nên báo như trên.
+**Lưu ý về cảnh báo dị ứng:** bảng nhóm dị ứng trong `server/allergy-check.mjs` là lưới an toàn, không phải cơ sở dữ liệu tương tác thuốc. Một trường hợp cảnh báo bị bỏ sót được coi là lỗi an toàn và nên báo như trên.
 
 ## Khi tự chạy ứng dụng
 
 - Không commit `.env`, khóa, token; truyền thông tin kết nối Junctura bằng biến môi trường hoặc `--env-file`.
-- Không đưa dữ liệu người bệnh thật vào bản demo.
+- Không đưa dữ liệu người bệnh thật vào môi trường thử nghiệm.
 - Quét QR bằng camera chỉ chạy trên HTTPS hoặc localhost; khi mở ra mạng, đặt ứng dụng sau một reverse proxy có HTTPS.

@@ -29,7 +29,7 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 - **Việc hằng ngày của nhà thuốc** — quét mã trên đơn, xem kết quả xác minh trong một màn hình, phát thuốc theo lô hoặc từ chối có lý do, quản lý kho và xem lại lịch sử.
 - **Chỉ hỏi phần cần thiết, qua Junctura** — Pharmacy không giữ hồ sơ người bệnh. Đơn thuốc lấy từ bệnh viện, danh sách dị ứng lấy từ trạm y tế, và chỉ khi người bệnh đã đồng ý cho mục đích phát thuốc. Mọi lần hỏi đều để lại dấu vết.
 
-> Đây là sản phẩm demo cho cuộc thi; dữ liệu là **dữ liệu giả lập**, không có thông tin người thật.
+> Dữ liệu là **dữ liệu giả lập**, không có thông tin người thật.
 
 ### Ai dùng và dùng để làm gì
 
@@ -46,7 +46,7 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 - Một màn hình cho biết: đơn hợp lệ không, ngày kê, hạn dùng, danh sách thuốc, đã phát chưa, và dị ứng của người bệnh, kèm nguồn và thời điểm nhận dữ liệu.
 - Danh sách dị ứng rỗng luôn là "chưa ghi nhận", không bao giờ là "không dị ứng"; không lấy được thông tin dị ứng thì nhắc dược sĩ hỏi người bệnh trước khi phát.
 - Chưa có đồng thuận thì hiện rõ "người bệnh chưa đồng ý", không hiện như dữ liệu rỗng.
-- **Cảnh báo dị ứng trên từng dòng thuốc**, theo tên và nhóm dị ứng phổ biến (ví dụ dị ứng Penicillin thì cảnh báo Amoxicillin). Phát thuốc trùng dị ứng phải ghi lý do; máy chủ tự tính lại và lưu lý do. Đây là lưới an toàn cho demo, không thay đánh giá chuyên môn.
+- **Cảnh báo dị ứng trên từng dòng thuốc**, theo tên và nhóm dị ứng phổ biến (ví dụ dị ứng Penicillin thì cảnh báo Amoxicillin). Phát thuốc trùng dị ứng phải ghi lý do; máy chủ tự tính lại và lưu lý do. Đây là lưới an toàn, không thay đánh giá chuyên môn.
 
 **Hôm nay**
 - Trang tổng quan trong ngày theo giờ Việt Nam: số đơn đã xác minh, đã phát, đã từ chối, chưa có đồng thuận và phát dù trùng dị ứng.
@@ -160,7 +160,7 @@ npm run seed:stock    # (tùy chọn) nạp kho thuốc mẫu
 npm start             # chạy máy chủ
 ```
 
-Mở <http://localhost:5184> và đăng nhập bằng `duocsi.nhathuoc`. Mật khẩu demo nằm trong `.junctura/demo/accounts.env` của junctura-health.
+Mở <http://localhost:5184> và đăng nhập bằng `duocsi.nhathuoc`. Mật khẩu nằm trong `.junctura/demo/accounts.env` của junctura-health.
 
 **Chạy bằng Docker.** Ảnh dựng từ [`Dockerfile`](Dockerfile) (build nhiều giai đoạn, chạy bằng người dùng không phải root). Thông tin kết nối truyền bằng `--env-file`, junctura-health gắn ở chế độ chỉ đọc:
 
