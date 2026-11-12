@@ -13,6 +13,8 @@ const API_METHODS = new Map([
   ["/api/dispense", "POST"],
   ["/api/refuse", "POST"],
   ["/api/history", "GET, HEAD"],
+  ["/api/call-log", "GET, HEAD"],
+  ["/api/stock", "GET, HEAD, POST"],
 ]);
 
 const TYPES = {
@@ -88,12 +90,23 @@ function verificationRequest(body, extras = []) {
   return null;
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+function isIsoDate(value) {
+  if (typeof value !== "string" || value.length > 40) return false;
+  if (!DATE_ONLY.test(value) && !/^\d{4}-\d{2}-\d{2}T/.test(value)) return false;
+  const day = value.slice(0, 10);
+  const parsedDay = new Date(`${day}T00:00:00.000Z`);
+  if (!Number.isFinite(parsedDay.getTime()) || parsedDay.toISOString().slice(0, 10) !== day) return false;
+  return Number.isFinite(Date.parse(value));
+}
+
 /**
  * Request handler of the Pharmacy server: a small JSON API behind Junctura sign-in plus the
  * built web UI. Staff are the demo accounts of this application; every other signed-in
  * person is refused.
  */
-export function createApp({ config, data, verifier, capabilities, dispensing }) {
+export function createApp({ config, data, verifier, capabilities, dispensing, callLog, stock }) {
   const base = securityHeaders(config);
 
   const send = (res, status, body, headers = {}) => {
@@ -110,7 +123,24 @@ export function createApp({ config, data, verifier, capabilities, dispensing }) 
     return user ? { username: user.username, displayName: user.displayName, role: user.role } : null;
   }
 
-  async function verify(req, res) {
+  async function recordCalls(result, user) {
+    if (!callLog) return;
+    const at = new Date().toISOString();
+    const entries = [
+      ["prescription-verify", result.prescription?.status],
+      ["allergy-list", result.allergies?.status],
+    ];
+    await Promise.all(entries.map(([capability, outcome]) => callLog.add({
+      capability,
+      purpose: "dispensing",
+      outcome,
+      prescriptionCode: result.prescriptionCode,
+      pharmacist: user.username,
+      at,
+    }).catch(error => console.error(error?.code ?? "call-log-unavailable"))));
+  }
+
+  async function verify(req, res, user) {
     if (!capabilities) return send(res, 503, { error: "junctura-not-configured" });
     if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
 
@@ -121,7 +151,9 @@ export function createApp({ config, data, verifier, capabilities, dispensing }) 
     const request = verificationRequest(parsed.body);
     if (!request) return send(res, 400, { error: "invalid-request" });
 
-    return send(res, 200, await runVerification({ capabilities, ...request }));
+    const result = await runVerification({ capabilities, ...request });
+    await recordCalls(result, user);
+    return send(res, 200, result);
   }
 
   // Store and capability failures only log an error code, never patient data.
@@ -147,6 +179,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing }) 
 
     try {
       const result = await runVerification({ capabilities, ...request });
+      await recordCalls(result, user);
       if (!result.dispensable) return send(res, 409, { error: "not-dispensable", blockers: result.blockers });
 
       const history = await dispensing.list();
@@ -171,6 +204,17 @@ export function createApp({ config, data, verifier, capabilities, dispensing }) 
         items.push({ name, strength: prescribedItem.strength, quantity, lot });
       }
       if (items.length === 0) return send(res, 400, { error: "items-mismatch" });
+
+      // Stock is optional: a lot the pharmacy never received is still dispensed,
+      // but a known lot must have enough on hand.
+      if (stock) {
+        const lots = await stock.summary();
+        const byLot = new Map(lots.map(lot => [`${lot.name}\u0000${lot.lot}`, lot]));
+        for (const item of items) {
+          const known = byLot.get(`${item.name}\u0000${item.lot}`);
+          if (known && known.onHand < item.quantity) return send(res, 409, { error: "insufficient-stock" });
+        }
+      }
 
       const entry = {
         prescriptionCode: request.prescriptionCode,
@@ -229,6 +273,55 @@ export function createApp({ config, data, verifier, capabilities, dispensing }) 
     }
   }
 
+  async function callLogRoute(req, res) {
+    if (!callLog) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      return send(res, 200, { items: await callLog.list() });
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function receiveStock(req, res, user) {
+    if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+
+    const parsed = await readJsonBody(req);
+    if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+    if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
+
+    const body = parsed.body;
+    if (!body || typeof body !== "object" || Array.isArray(body)) return send(res, 400, { error: "invalid-request" });
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const strength = typeof body.strength === "string" ? body.strength.trim() : "";
+    const lot = typeof body.lot === "string" ? body.lot.trim() : "";
+    const { quantity, expiresAt } = body;
+    if (name.length < 1 || name.length > 160 || strength.length < 1 || strength.length > 80
+      || lot.length < 1 || lot.length > 40 || !Number.isInteger(quantity)
+      || quantity < 1 || quantity > 100000 || !isIsoDate(expiresAt)) {
+      return send(res, 400, { error: "invalid-request" });
+    }
+
+    try {
+      const entry = await stock.receive({ name, strength, lot, quantity, expiresAt, receivedBy: user.username });
+      return send(res, 201, entry);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function stockRoute(req, res, user) {
+    if (!stock) return send(res, 503, { error: "junctura-not-configured" });
+    if (req.method === "POST") return receiveStock(req, res, user);
+    try {
+      const items = await stock.summary();
+      const counts = { low: 0, out: 0, expiring: 0, expired: 0 };
+      for (const item of items) if (item.status !== "ok") counts[item.status]++;
+      return send(res, 200, { items, counts });
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
   async function api(req, res, url) {
     if (url.pathname === "/api/config") {
       return send(res, 200, { issuer: config.issuer, clientId: config.webClientId, facility: data.facility });
@@ -240,12 +333,13 @@ export function createApp({ config, data, verifier, capabilities, dispensing }) 
       if (!(error instanceof AuthError)) console.error(`token check failed: ${error.message}`);
       return send(res, 401, { error: "unauthenticated" }, { "www-authenticate": "Bearer" });
     }
-    if (url.pathname === "/api/verify" || url.pathname === "/api/dispense"
-      || url.pathname === "/api/refuse" || url.pathname === "/api/history") {
+    if (API_METHODS.has(url.pathname)) {
       if (!user || user.role !== "pharmacist") return send(res, 403, { error: "not-pharmacist" });
-      if (url.pathname === "/api/verify") return verify(req, res);
+      if (url.pathname === "/api/verify") return verify(req, res, user);
       if (url.pathname === "/api/dispense") return dispense(req, res, user);
       if (url.pathname === "/api/refuse") return refuse(req, res, user);
+      if (url.pathname === "/api/call-log") return callLogRoute(req, res);
+      if (url.pathname === "/api/stock") return stockRoute(req, res, user);
       return history(req, res);
     }
     if (!user) return send(res, 403, { error: "not-pharmacy-staff" });
