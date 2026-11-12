@@ -204,3 +204,50 @@ export interface OverviewResult {
   stock: OverviewStock | null;
   recent: HistoryItem[] | null;
 }
+
+export interface ReportTotals {
+  dispensed: number;
+  refused: number;
+  refusalRate: number;
+  allergyOverrides: number;
+  noConsent: number;
+}
+
+export interface ReportDay {
+  date: string;
+  dispensed: number;
+  refused: number;
+}
+
+export interface ReportMedicine {
+  name: string;
+  strength: string;
+  quantity: number;
+  prescriptions: number;
+}
+
+export interface ReportRefusalReason {
+  reason: string;
+  count: number;
+}
+
+export interface ReportResult {
+  from: string;
+  to: string;
+  totals: ReportTotals;
+  perDay: ReportDay[];
+  medicines: ReportMedicine[];
+  refusalReasons: ReportRefusalReason[];
+}
+
+export interface SettingsResult {
+  lowStock: number;
+  expiringDays: number;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export interface SettingsInput {
+  lowStock: number;
+  expiringDays: number;
+}
