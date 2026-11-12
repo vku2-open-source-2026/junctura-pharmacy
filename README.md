@@ -42,7 +42,7 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 ## Tính năng nổi bật
 
 **Xác minh đơn**
-- Quét mã QR trên đơn (máy quét gõ như bàn phím) hoặc nhập tay mã đơn và mã người bệnh.
+- Quét mã QR trên đơn bằng camera của laptop hoặc điện thoại (cần HTTPS hoặc localhost), bằng máy quét gõ như bàn phím, hoặc nhập tay mã đơn và mã người bệnh.
 - Một màn hình cho biết: đơn hợp lệ không, ngày kê, hạn dùng, danh sách thuốc, đã phát chưa, và dị ứng của người bệnh, kèm nguồn và thời điểm nhận dữ liệu.
 - Danh sách dị ứng rỗng luôn là "chưa ghi nhận", không bao giờ là "không dị ứng"; không lấy được thông tin dị ứng thì nhắc dược sĩ hỏi người bệnh trước khi phát.
 - Chưa có đồng thuận thì hiện rõ "người bệnh chưa đồng ý", không hiện như dữ liệu rỗng.
@@ -225,6 +225,7 @@ Mọi API dưới đây cần đăng nhập bằng tài khoản dược sĩ, tr�
 | Máy chủ | Node.js 24, không framework; [`@junctura/server-client`](https://www.npmjs.com/package/@junctura/server-client), [`@junctura/health-contracts`](https://www.npmjs.com/package/@junctura/health-contracts) |
 | Lưu trữ | Kho bản ghi của Junctura (lịch sử, kho, nhật ký); không có cơ sở dữ liệu riêng |
 | Giao diện | React 19, Vite, TypeScript, Tailwind CSS, [`@junctura/health-ui`](https://www.npmjs.com/package/@junctura/health-ui), `lucide-react` |
+| Quét mã QR | `BarcodeDetector` khi trình duyệt hỗ trợ, [`jsqr`](https://www.npmjs.com/package/jsqr) làm dự phòng và vẽ khung hình lên canvas |
 | Đóng gói, CI | npm, Docker, GitHub Actions |
 
 Thư viện bên thứ ba được khai trong `package.json` và `package-lock.json` (gốc và `web/`), cài từ registry; không chép mã nguồn của chúng vào repo.
@@ -275,7 +276,7 @@ GitHub Actions chạy cả bốn lệnh và build giao diện ở mỗi Pull Req
 - [ ] Đọc mã QR bằng bộ đọc dùng chung trong `@junctura/health-contracts`.
 - [ ] Bản phát hành `v0.1.0` kèm gói `.tar.gz`.
 
-Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh viện chưa được báo lại; kho bản ghi của Junctura chỉ liệt kê 100 bản ghi mới nhất mỗi loại, nên lịch sử, kho và nhật ký chỉ tính trong phạm vi đó; chưa quét mã bằng camera. Tiến độ chi tiết ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
+Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh viện chưa được báo lại; kho bản ghi của Junctura chỉ liệt kê 100 bản ghi mới nhất mỗi loại, nên lịch sử, kho và nhật ký chỉ tính trong phạm vi đó; quét mã bằng camera chỉ dùng được trên HTTPS hoặc localhost. Tiến độ chi tiết ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
 
 ## Đóng góp
 

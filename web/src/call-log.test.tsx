@@ -52,11 +52,13 @@ describe("call log screen", () => {
     expect(screen.queryByText("Mã người bệnh")).toBeNull();
   });
 
-  it("shows an empty state when nothing has been called yet", async () => {
+  it("shows an empty state that points to verification", async () => {
     mocked.getCallLog.mockResolvedValue({ items: [] });
     wrap();
 
-    expect(await screen.findByText("Chưa có nhật ký")).toBeTruthy();
+    expect(await screen.findByText("Chưa có lần gọi Junctura nào")).toBeTruthy();
+    expect(screen.getByText("Mỗi lần xác minh đơn sẽ được ghi ở đây.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Đi tới Xác minh đơn" })).toBeTruthy();
     expect(screen.getByText("Nhật ký không lưu thông tin người bệnh.")).toBeTruthy();
   });
 
@@ -65,6 +67,6 @@ describe("call log screen", () => {
     wrap();
 
     await userEvent.click(await screen.findByRole("button", { name: "Thử lại" }));
-    expect(await screen.findByText("Chưa có nhật ký")).toBeTruthy();
+    expect(await screen.findByText("Chưa có lần gọi Junctura nào")).toBeTruthy();
   });
 });

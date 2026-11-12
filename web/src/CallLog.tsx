@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { Badge, DataTable, EmptyState, PageHeader, formatDateTime, type Column, type Tone } from "@junctura/health-ui";
+import { Badge, Button, DataTable, EmptyState, PageHeader, formatDateTime, type Column, type Tone } from "@junctura/health-ui";
+import { ArrowRight } from "lucide-react";
 import { getCallLog } from "./api";
+import { navigate } from "./router";
 import { Remote, useRemote, useSession } from "./session";
 import type { CallLogItem, CapabilityStatus } from "./types";
 
@@ -56,7 +58,14 @@ export function CallLog() {
       <p className="text-sm text-muted">Nhật ký không lưu thông tin người bệnh.</p>
       <Remote state={state} reload={reload}>
         {log => log.items.length === 0
-          ? <EmptyState title="Chưa có nhật ký">Các lần nhà thuốc gọi Junctura sẽ hiện ở đây sau khi xác minh hoặc phát thuốc.</EmptyState>
+          ? (
+            <EmptyState
+              title="Chưa có lần gọi Junctura nào"
+              action={<Button icon={<ArrowRight aria-hidden className="size-4" />} onClick={() => navigate("/")}>Đi tới Xác minh đơn</Button>}
+            >
+              Mỗi lần xác minh đơn sẽ được ghi ở đây.
+            </EmptyState>
+          )
           : <DataTable caption="Nhật ký gọi Junctura" columns={COLUMNS} rows={log.items} rowKey={item => `${item.capability}-${item.at}`} />}
       </Remote>
     </div>

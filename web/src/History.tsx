@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { Badge, DataTable, EmptyState, PageHeader, formatDateTime, type Column } from "@junctura/health-ui";
+import { Badge, Button, DataTable, EmptyState, PageHeader, formatDateTime, type Column } from "@junctura/health-ui";
 import { getHistory } from "./api";
+import { navigate } from "./router";
+import { ArrowRight } from "lucide-react";
 import { Remote, useRemote, useSession } from "./session";
 import type { HistoryItem } from "./types";
 
@@ -38,7 +40,14 @@ export function History() {
       <PageHeader title="Lịch sử" description="Các lần phát thuốc và từ chối tại nhà thuốc, mới nhất trước." />
       <Remote state={state} reload={reload}>
         {history => history.items.length === 0
-          ? <EmptyState title="Chưa có lịch sử">Các lần phát thuốc và từ chối sẽ hiện ở đây sau khi bạn xác nhận.</EmptyState>
+          ? (
+            <EmptyState
+              title="Chưa có đơn nào được phát hay từ chối"
+              action={<Button icon={<ArrowRight aria-hidden className="size-4" />} onClick={() => navigate("/")}>Đi tới Xác minh đơn</Button>}
+            >
+              Mỗi lần phát hoặc từ chối sẽ hiện ở đây sau khi bạn xác nhận.
+            </EmptyState>
+          )
           : <DataTable caption="Lịch sử phát thuốc" columns={COLUMNS} rows={history.items} rowKey={item => `${item.prescriptionCode}-${item.at}`} />}
       </Remote>
     </div>

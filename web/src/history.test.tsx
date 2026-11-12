@@ -23,10 +23,11 @@ afterEach(() => {
 });
 
 describe("history screen", () => {
-  it("shows an empty state when there is no history", async () => {
+  it("shows an empty state that points to verification", async () => {
     mocked.getHistory.mockResolvedValue({ items: [] });
     wrap();
-    expect(await screen.findByText("Chưa có lịch sử")).toBeTruthy();
+    expect(await screen.findByText("Chưa có đơn nào được phát hay từ chối")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Đi tới Xác minh đơn" })).toBeTruthy();
   });
 
   it("lists dispensed and refused entries", async () => {
@@ -54,6 +55,6 @@ describe("history screen", () => {
     mocked.getHistory.mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce({ items: [] });
     wrap();
     await userEvent.click(await screen.findByRole("button", { name: "Thử lại" }));
-    expect(await screen.findByText("Chưa có lịch sử")).toBeTruthy();
+    expect(await screen.findByText("Chưa có đơn nào được phát hay từ chối")).toBeTruthy();
   });
 });

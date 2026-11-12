@@ -87,7 +87,7 @@ export const landingProps = (facility?: string): Omit<LandingProps, "onSignIn"> 
     items: [
       {
         title: "Quét mã trên đơn",
-        text: "Dùng máy quét mã QR (gõ như bàn phím) hoặc nhập tay mã đơn và mã người bệnh.",
+        text: "Dùng camera của laptop hoặc điện thoại, máy quét mã QR (gõ như bàn phím), hoặc nhập tay mã đơn và mã người bệnh. Camera cần HTTPS hoặc localhost.",
       },
       {
         title: "Junctura kiểm tra đồng thuận",
@@ -166,7 +166,7 @@ export const landingProps = (facility?: string): Omit<LandingProps, "onSignIn"> 
       },
       {
         q: "Có quét mã bằng camera điện thoại không?",
-        a: "Chưa. Ứng dụng nhận mã từ máy quét QR gõ như bàn phím hoặc nhập tay mã đơn và mã người bệnh.",
+        a: "Có. Nhấn “Quét bằng camera” cạnh ô mã QR để dùng camera sau của laptop hoặc điện thoại; ứng dụng tự điền và xác minh khi đọc được mã. Camera chỉ dùng được trên HTTPS hoặc localhost.",
       },
     ],
   },

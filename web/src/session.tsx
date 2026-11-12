@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { EmptyState, ErrorState, Skeleton } from "@junctura/health-ui";
+import { EmptyState, ErrorState, PermissionState, Skeleton } from "@junctura/health-ui";
 import { createContext, useContext, useEffect, useState, type DependencyList, type ReactNode } from "react";
 import { ApiError } from "./api";
 import type { OidcSettings } from "./auth";
@@ -42,7 +42,12 @@ export function useRemote<T>(load: (signal: AbortSignal) => Promise<T>, deps: De
 /** Skeleton while loading, an error with retry on failure, the content when ready. */
 export function Remote<T>({ state, reload, children }: { state: RemoteState<T>; reload: () => void; children: (data: T) => ReactNode }) {
   if (state.status === "loading") return <Skeleton lines={5} />;
-  if (state.status === "error") return <ErrorState onRetry={reload}>Không tải được dữ liệu từ máy chủ Nhà thuốc. Kiểm tra kết nối rồi thử lại.</ErrorState>;
+  if (state.status === "error") {
+    if (state.forbidden) {
+      return <PermissionState title="Tài khoản này không phải dược sĩ">Liên hệ quản trị Junctura để được cấp quyền xem nội dung này.</PermissionState>;
+    }
+    return <ErrorState onRetry={reload}>Không tải được dữ liệu từ máy chủ Nhà thuốc. Kiểm tra kết nối rồi thử lại.</ErrorState>;
+  }
   return <>{children(state.data)}</>;
 }
 

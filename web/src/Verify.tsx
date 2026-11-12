@@ -7,6 +7,7 @@ import {
 import { ScanLine } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { ApiError, dispense, refuse, verifyPrescription } from "./api";
+import { QrScanner } from "./QrScanner";
 import { useSession } from "./session";
 import type {
   AllergyConflict, Blocker, CapabilityStatus, DispenseItem, PrescriptionItem, VerificationResult, VerifyInput,
@@ -122,15 +123,7 @@ export function Verify() {
     ? { prescriptionCode: code.trim(), patient: patient.trim() }
     : { qr: qr.trim() };
 
-  const submitVerify = async (event: FormEvent) => {
-    event.preventDefault();
-    const input = inputOf();
-    const empty = "qr" in input ? !input.qr : !input.prescriptionCode || !input.patient;
-    if (empty) {
-      setMessage({ tone: "danger", text: mode === "manual" ? "Nhập mã đơn và mã người bệnh trước khi xác minh." : "Nhập hoặc quét mã QR trên đơn trước khi xác minh." });
-      return;
-    }
-
+  const runVerify = async (input: VerifyInput) => {
     setBusy(true);
     setMessage(null);
     setFormError(null);
@@ -153,6 +146,25 @@ export function Verify() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const submitVerify = async (event: FormEvent) => {
+    event.preventDefault();
+    const input = inputOf();
+    const empty = "qr" in input ? !input.qr : !input.prescriptionCode || !input.patient;
+    if (empty) {
+      setMessage({ tone: "danger", text: mode === "manual" ? "Nhập mã đơn và mã người bệnh trước khi xác minh." : "Nhập hoặc quét mã QR trên đơn trước khi xác minh." });
+      return;
+    }
+
+    await runVerify(input);
+  };
+
+  const scanned = (text: string) => {
+    const value = text.trim();
+    if (!value) return;
+    setQr(value);
+    void runVerify({ qr: value });
   };
 
   const submitDispense = async (event: FormEvent) => {
@@ -233,14 +245,19 @@ export function Verify() {
       <Card title="Nhập mã đơn">
         <form className="space-y-4" onSubmit={submitVerify}>
           {mode === "scan" ? (
-            <TextField
-              label="Mã QR trên đơn"
-              hint="Máy quét gõ mã như bàn phím. Nhấn Enter để xác minh."
-              value={qr}
-              autoFocus
-              autoComplete="off"
-              onChange={event => setQr(event.target.value)}
-            />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <div className="flex-1">
+                <TextField
+                  label="Mã QR trên đơn"
+                  hint="Quét mã QR trên đơn bằng camera hoặc máy quét, hoặc chuyển sang nhập tay."
+                  value={qr}
+                  autoFocus
+                  autoComplete="off"
+                  onChange={event => setQr(event.target.value)}
+                />
+              </div>
+              <QrScanner onResult={scanned} />
+            </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField label="Mã đơn" value={code} autoComplete="off" onChange={event => setCode(event.target.value)} />
