@@ -46,20 +46,26 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 - Một màn hình cho biết: đơn hợp lệ không, ngày kê, hạn dùng, danh sách thuốc, đã phát chưa, và dị ứng của người bệnh, kèm nguồn và thời điểm nhận dữ liệu.
 - Danh sách dị ứng rỗng luôn là "chưa ghi nhận", không bao giờ là "không dị ứng"; không lấy được thông tin dị ứng thì nhắc dược sĩ hỏi người bệnh trước khi phát.
 - Chưa có đồng thuận thì hiện rõ "người bệnh chưa đồng ý", không hiện như dữ liệu rỗng.
+- **Cảnh báo dị ứng trên từng dòng thuốc**, theo tên và nhóm dị ứng phổ biến (ví dụ dị ứng Penicillin thì cảnh báo Amoxicillin). Phát thuốc trùng dị ứng phải ghi lý do; máy chủ tự tính lại và lưu lý do. Đây là lưới an toàn cho demo, không thay đánh giá chuyên môn.
 
 **Hôm nay**
 - Trang tổng quan trong ngày theo giờ Việt Nam: số đơn đã xác minh, đã phát, đã từ chối, chưa có đồng thuận và phát dù trùng dị ứng.
 - Lô thuốc cần chú ý (hết hạn, hết hàng, sắp hết hạn, sắp hết) và 5 đơn phát/từ chối gần nhất; phần nào lỗi chỉ báo phần đó.
 
 **Phát thuốc và kho**
-- Phát từng dòng thuốc với số lượng và số lô; máy chủ **xác minh lại đơn** trước khi ghi, không tin kết quả cũ từ trình duyệt.
+- Phát từng dòng thuốc với số lượng và lô **chọn từ kho** (gợi ý lô hết hạn sớm nhất còn đủ hàng) hoặc nhập tay; hỏi xác nhận trước khi ghi. Máy chủ **xác minh lại đơn** trước khi ghi, không tin kết quả cũ từ trình duyệt.
 - Không cho phát đơn hết hạn, đơn đã phát, thuốc hoặc số lượng không khớp đơn, lô đã hết hạn hoặc không đủ hàng.
 - Từ chối phát luôn kèm lý do.
-- Kho theo lô: tồn kho = số đã nhập trừ số đã phát; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô mới.
+- Kho theo lô: tồn kho = số đã nhập trừ số đã phát và số đã điều chỉnh; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô, xuất hủy, kiểm kê (đều có lý do); xem theo lô hoặc gộp theo thuốc, tìm không dấu, lọc theo trạng thái. Ngưỡng "sắp hết" và "sắp hết hạn" chỉnh trong Cài đặt.
 
 **Lịch sử và nhật ký**
-- Lịch sử các đơn đã phát và đã từ chối, không hiện mã người bệnh.
-- "Nhật ký": mỗi lần nhà thuốc hỏi Junctura — năng lực nào, mục đích, kết quả, đơn nào, dược sĩ nào. Nhật ký không lưu người bệnh, thuốc hay dị ứng.
+- Lịch sử các đơn đã phát và đã từ chối, không hiện mã người bệnh; mở từng lần để xem và **in phiếu phát thuốc**.
+- "Nhật ký Junctura": mỗi lần nhà thuốc hỏi Junctura — năng lực nào, mục đích, kết quả, đơn nào, dược sĩ nào. Không lưu người bệnh, thuốc hay dị ứng.
+- "Nhật ký thao tác": ai xác minh, phát, từ chối, nhập kho, điều chỉnh kho, đổi cài đặt, lúc nào.
+
+**Báo cáo và tiện ích**
+- Báo cáo theo khoảng ngày (tối đa 92 ngày): số đơn phát và từ chối theo ngày, số lượng theo thuốc, lý do từ chối, tỷ lệ từ chối, phát dù trùng dị ứng, bị chặn vì chưa đồng thuận; tải CSV mở đúng tiếng Việt trong Excel. Chỉ có số đếm, không có người bệnh.
+- Tìm nhanh từ mọi màn (`/` hoặc Ctrl+K): trang, mã đơn, thuốc, số lô. Mã đơn hiện bằng font đơn cách, có nút sao chép.
 - Giao diện dựng trên [`@junctura/health-ui`](https://www.npmjs.com/package/@junctura/health-ui): sáng/tối, cỡ chữ, dùng được trên điện thoại.
 
 ## Kiến trúc
@@ -201,19 +207,26 @@ Máy chủ đọc kết nối từ `.junctura/demo/junctura-pharmacy.env` do `de
 | --- | --- |
 | Xác minh đơn (kèm phát thuốc và từ chối) | `/` |
 | Hôm nay | `/hom-nay` |
-| Lịch sử | `/lich-su` |
+| Lịch sử · Phiếu phát thuốc | `/lich-su` · `/lich-su/<id>` |
 | Kho | `/kho` |
-| Nhật ký | `/nhat-ky` |
+| Báo cáo | `/bao-cao` |
+| Nhật ký Junctura | `/nhat-ky` |
+| Nhật ký thao tác | `/nhat-ky-thao-tac` |
+| Cài đặt | `/cai-dat` |
 
 Mọi API dưới đây cần đăng nhập bằng tài khoản dược sĩ, trừ `/api/config` và `/healthz`.
 
 | Endpoint | Mô tả |
 | --- | --- |
 | `POST /api/verify` | Xác minh đơn (`{ qr }` hoặc `{ prescriptionCode, patient }`): đơn, dị ứng, có phát được không và lý do |
-| `POST /api/dispense` | Phát thuốc theo lô; máy chủ xác minh lại đơn trước khi ghi |
+| `POST /api/dispense` | Phát thuốc theo lô; máy chủ xác minh lại đơn, chặn lô hết hạn hoặc thiếu hàng, bắt buộc `allergyOverride` khi thuốc trùng dị ứng |
 | `POST /api/refuse` | Từ chối phát, kèm lý do 3–200 ký tự |
-| `GET /api/history` | Lịch sử phát và từ chối |
+| `GET /api/history` · `GET /api/history/<id>` | Lịch sử phát và từ chối · một lần phát (cho phiếu in) |
 | `GET /api/stock` · `POST /api/stock` | Tồn kho theo lô · nhập lô mới |
+| `POST /api/stock/adjust` | Xuất hủy (`kind: "dispose"`) hoặc kiểm kê (`kind: "count"`), kèm lý do |
+| `GET /api/report` · `GET /api/report.csv` | Báo cáo theo khoảng ngày (`from`, `to`) · bản CSV |
+| `GET /api/audit` | Nhật ký thao tác của nhân viên |
+| `GET /api/settings` · `PUT /api/settings` | Ngưỡng sắp hết (`lowStock`) và sắp hết hạn (`expiringDays`) |
 | `GET /api/call-log` | Nhật ký các lần gọi Junctura |
 | `GET /api/overview` | Tổng quan trong ngày (giờ Việt Nam), kho cần chú ý và đơn gần đây |
 | `GET /api/me` · `GET /api/config` · `GET /healthz` | Người đang đăng nhập · cấu hình công khai · kiểm tra sống |
@@ -236,6 +249,9 @@ Thư viện bên thứ ba được khai trong `package.json` và `package-lock.j
 | --- | --- |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Quy trình đóng góp, quy tắc bắt buộc |
 | [CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi |
+| [SECURITY.md](SECURITY.md) | Cách báo lỗ hổng bảo mật |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Quy tắc ứng xử |
+| [THIRD-PARTY.md](THIRD-PARTY.md) | Thư viện bên thứ ba, phiên bản và giấy phép |
 | [`.env.example`](.env.example) | Mẫu biến môi trường |
 | [Tính năng từng ứng dụng](https://github.com/vku2-open-source-2026/junctura-health/blob/main/docs/APPS.md) | Phạm vi Pharmacy trong Junctura Health |
 | [Hợp đồng năng lực](https://github.com/vku2-open-source-2026/junctura-health/tree/main/contracts) | Dữ liệu vào, ra, mục đích được phép |
@@ -271,6 +287,9 @@ GitHub Actions chạy cả bốn lệnh và build giao diện ở mỗi Pull Req
 - [x] Xác minh đơn bằng QR hoặc nhập tay, cảnh báo dị ứng.
 - [x] Phát thuốc theo lô, từ chối có lý do, lịch sử.
 - [x] Kho theo lô và nhật ký các lần gọi Junctura.
+- [x] Cảnh báo dị ứng theo nhóm thuốc, quét QR bằng camera, trang Hôm nay.
+- [x] Chọn lô từ kho, xác nhận trước khi phát, phiếu phát in được, nhật ký thao tác.
+- [x] Xuất hủy và kiểm kê kho, báo cáo CSV, cài đặt ngưỡng, tìm nhanh.
 - [x] Đóng gói Docker.
 - [ ] Chạy cùng bộ năm ứng dụng bằng một lệnh `docker compose` của junctura-health.
 - [ ] Đọc mã QR bằng bộ đọc dùng chung trong `@junctura/health-contracts`.
@@ -280,7 +299,7 @@ Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh
 
 ## Đóng góp
 
-Mọi đóng góp đều được hoan nghênh. Báo lỗi và đề xuất tại [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues). Trước khi gửi Pull Request, đọc [CONTRIBUTING.md](CONTRIBUTING.md). Commit theo chuẩn Conventional Commits và không bao giờ commit tệp `.env` hay khóa bí mật. Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
+Mọi đóng góp đều được hoan nghênh. Báo lỗi và đề xuất tại [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues); lỗ hổng bảo mật báo theo [SECURITY.md](SECURITY.md). Trước khi gửi Pull Request, đọc [CONTRIBUTING.md](CONTRIBUTING.md) và [Quy tắc ứng xử](CODE_OF_CONDUCT.md). Commit theo chuẩn Conventional Commits và không bao giờ commit tệp `.env` hay khóa bí mật. Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
 
 ## Giấy phép
 
@@ -290,4 +309,4 @@ Junctura Pharmacy là phần mềm tự do, phát hành theo [Apache License 2.0
 - Mỗi tệp mã nguồn đều ghi giấy phép bằng tiêu đề [SPDX](https://spdx.dev/) (`SPDX-License-Identifier: Apache-2.0`); các tệp không chứa được chú thích (JSON, dữ liệu) được khai báo trong [REUSE.toml](REUSE.toml). Dự án tuân thủ chuẩn [REUSE 3.3](https://reuse.software/), kiểm tra bằng `reuse lint`.
 <!-- REUSE-IgnoreEnd -->
 - Toàn văn giấy phép: [LICENSE](LICENSE) · thông báo bản quyền: [NOTICE](NOTICE).
-- Thành phần bên thứ ba giữ giấy phép riêng và đều là giấy phép nguồn mở; chúng được khai trong `package.json`, cài từ registry, không chép hay sửa mã nguồn.
+- Thành phần bên thứ ba giữ giấy phép riêng và đều là giấy phép nguồn mở; chúng được khai trong `package.json`, cài từ registry, không chép hay sửa mã nguồn. Danh sách, phiên bản và giấy phép tại [THIRD-PARTY.md](THIRD-PARTY.md).
