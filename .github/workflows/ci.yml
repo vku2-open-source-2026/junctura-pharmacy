@@ -41,6 +41,8 @@ jobs:
           ref: 73eaf784d73f7eb57aa61c0ad1acaa91f0419eda
           path: .junctura-health
           persist-credentials: false
+      - name: Install server dependencies from the lockfile
+        run: npm ci --no-audit --no-fund
       - name: Run server tests
         env:
           JUNCTURA_HEALTH_DIR: .junctura-health
