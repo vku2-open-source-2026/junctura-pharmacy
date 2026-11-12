@@ -38,10 +38,10 @@ const result: VerificationResult = {
 };
 
 const lots: StockItem[] = [
-  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-EXPIRED", expiresAt: "2025-01-01T00:00:00.000Z", received: 100, dispensed: 0, onHand: 100, status: "expired" },
-  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-LATE", expiresAt: "2027-06-01T00:00:00.000Z", received: 100, dispensed: 0, onHand: 100, status: "ok" },
-  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-EARLY", expiresAt: "2027-01-01T00:00:00.000Z", received: 100, dispensed: 0, onHand: 100, status: "ok" },
-  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-SMALL", expiresAt: "2026-12-01T00:00:00.000Z", received: 5, dispensed: 0, onHand: 5, status: "low" },
+  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-EXPIRED", expiresAt: "2025-01-01T00:00:00.000Z", received: 100, dispensed: 0, adjusted: 0, onHand: 100, status: "expired" },
+  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-LATE", expiresAt: "2027-06-01T00:00:00.000Z", received: 100, dispensed: 0, adjusted: 0, onHand: 100, status: "ok" },
+  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-EARLY", expiresAt: "2027-01-01T00:00:00.000Z", received: 100, dispensed: 0, adjusted: 0, onHand: 100, status: "ok" },
+  { name: "Amoxicillin", strength: "500 mg", lot: "LOT-SMALL", expiresAt: "2026-12-01T00:00:00.000Z", received: 5, dispensed: 0, adjusted: 0, onHand: 5, status: "low" },
 ];
 
 const session = { settings: { issuer: "https://id.test", clientId: "c" }, facility: "Nhà thuốc test", expire: () => {}, setCrumbs: () => {} };

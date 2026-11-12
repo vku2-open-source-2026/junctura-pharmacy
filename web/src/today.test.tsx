@@ -25,11 +25,11 @@ const overview = (overrides: Partial<OverviewResult> = {}): OverviewResult => ({
     attention: [
       {
         name: "Amoxicillin", strength: "500 mg", lot: "LOT-A", expiresAt: "2026-11-01",
-        received: 100, dispensed: 100, onHand: 0, status: "expired",
+        received: 100, dispensed: 100, adjusted: 0, onHand: 0, status: "expired",
       },
       {
         name: "Aspirin", strength: "81 mg", lot: "LOT-C", expiresAt: "2026-12-01",
-        received: 50, dispensed: 10, onHand: 40, status: "expiring",
+        received: 50, dispensed: 10, adjusted: 0, onHand: 40, status: "expiring",
       },
     ],
   },

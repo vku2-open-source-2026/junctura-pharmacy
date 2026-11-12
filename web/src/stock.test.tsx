@@ -21,7 +21,7 @@ const wrap = () => render(<SessionProvider value={session}><Stock /></SessionPro
 
 const item = (overrides: Partial<StockItem>): StockItem => ({
   name: "Thuốc", strength: "1 mg", lot: "LOT", expiresAt: "2027-01-01",
-  received: 100, dispensed: 0, onHand: 100, status: "ok", ...overrides,
+  received: 100, dispensed: 0, adjusted: 0, onHand: 100, status: "ok", ...overrides,
 });
 
 function stockResult(items: StockItem[]): StockResult {

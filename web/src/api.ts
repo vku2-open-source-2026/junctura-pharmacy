@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { freshAccessToken, type OidcSettings } from "./auth";
 import type {
-  AuditResult, CallLogResult, DispenseInput, DispenseResult, HistoryItem, HistoryResult, Me, OverviewResult,
-  PublicConfig, ReceiveStockInput, RefuseInput, RefuseResult, StockResult, VerificationResult, VerifyInput,
+  AdjustStockInput, AdjustStockResult, AuditResult, CallLogResult, DispenseInput, DispenseResult, HistoryItem,
+  HistoryResult, Me, OverviewResult, PublicConfig, ReceiveStockInput, RefuseInput, RefuseResult, StockResult,
+  VerificationResult, VerifyInput,
 } from "./types";
 
 export class ApiError extends Error {
@@ -60,3 +61,5 @@ export const getOverview = (settings: OidcSettings, signal?: AbortSignal) =>
   request<OverviewResult>("/api/overview", settings, { signal });
 export const receiveStock = (settings: OidcSettings, input: ReceiveStockInput) =>
   request<ReceiveStockInput & { receivedBy: string }>("/api/stock", settings, { method: "POST", body: input });
+export const adjustStock = (settings: OidcSettings, input: AdjustStockInput) =>
+  request<AdjustStockResult>("/api/stock/adjust", settings, { method: "POST", body: input });

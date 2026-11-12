@@ -146,6 +146,7 @@ export interface StockItem {
   expiresAt: string;
   received: number;
   dispensed: number;
+  adjusted: number;
   onHand: number;
   status: StockStatus;
 }
@@ -168,6 +169,20 @@ export interface ReceiveStockInput {
   lot: string;
   quantity: number;
   expiresAt: string;
+}
+
+export type AdjustStockInput =
+  | { name: string; lot: string; kind: "dispose"; quantity: number; reason: string }
+  | { name: string; lot: string; kind: "count"; counted: number; reason: string };
+
+export interface AdjustStockResult {
+  name: string;
+  lot: string;
+  kind: "dispose" | "count";
+  removed: number;
+  reason: string;
+  by: string;
+  at: string;
 }
 
 export interface OverviewToday {
