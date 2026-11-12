@@ -1,72 +1,158 @@
 <!-- SPDX-FileCopyrightText: 2026 Junctura Contributors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
+<div align="center">
+
+<img src="docs/assets/logo.svg" alt="Junctura" width="88" height="88">
+
 # Junctura Pharmacy
 
+**Phần mềm nguồn mở cho nhà thuốc — xác minh đơn và dị ứng trước khi phát thuốc, chỉ nhận đúng phần dữ liệu cần thiết khi người bệnh đồng ý.**
+
 [![Checks](https://github.com/vku2-open-source-2026/junctura-pharmacy/actions/workflows/ci.yml/badge.svg)](https://github.com/vku2-open-source-2026/junctura-pharmacy/actions/workflows/ci.yml)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![REUSE](https://img.shields.io/badge/REUSE-3.3-green.svg)](REUSE.toml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![REUSE compliant](https://img.shields.io/badge/REUSE-compliant-18877A.svg)](REUSE.toml)
+![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E.svg)
 
-**Junctura Pharmacy** là ứng dụng **nhà thuốc** trong [Junctura Health](https://github.com/vku2-open-source-2026/junctura-health), Tầng 2 của [Junctura DX-OS](https://github.com/vku2-open-source-2026/junctura-dxos). Nhà thuốc xác minh đơn thuốc và kiểm tra dị ứng trước khi phát thuốc; mọi dữ liệu người bệnh đến từ Junctura, chỉ khi người bệnh đồng ý và đúng mục đích.
+[Giới thiệu](#giới-thiệu) · [Kiến trúc](#kiến-trúc) · [Bắt đầu nhanh](#bắt-đầu-nhanh) · [Cấu hình](#cấu-hình) · [Trang và API](#trang-và-api-chính) · [Tài liệu](#tài-liệu) · [Lộ trình](#lộ-trình)
 
-> Trạng thái: đang xây dựng. Theo dõi tiến độ ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues) và [CHANGELOG](CHANGELOG.md).
+</div>
 
-## Vai trò trong hệ thống
+---
 
-Pharmacy là **bên gọi** hai năng lực theo [hợp đồng dùng chung](https://github.com/vku2-open-source-2026/junctura-health/tree/main/contracts):
+## Giới thiệu
+
+Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược sĩ khó biết đơn còn hiệu lực không, đã phát ở nơi khác chưa, và người bệnh có dị ứng với thuốc trong đơn không. Hỏi lại thì mất thời gian; xin cả hồ sơ thì nhận nhiều hơn mức cần thiết.
+
+**Junctura Pharmacy** là ứng dụng nhà thuốc trong [Junctura Health](https://github.com/vku2-open-source-2026/junctura-health), Tầng 2 của [Junctura DX-OS](https://github.com/vku2-open-source-2026/junctura-dxos). Pharmacy giải quyết bài toán theo hai phần:
+
+- **Việc hằng ngày của nhà thuốc** — quét mã trên đơn, xem kết quả xác minh trong một màn hình, phát thuốc theo lô hoặc từ chối có lý do, quản lý kho và xem lại lịch sử.
+- **Chỉ hỏi phần cần thiết, qua Junctura** — Pharmacy không giữ hồ sơ người bệnh. Đơn thuốc lấy từ bệnh viện, danh sách dị ứng lấy từ trạm y tế, và chỉ khi người bệnh đã đồng ý cho mục đích phát thuốc. Mọi lần hỏi đều để lại dấu vết.
+
+> Đây là sản phẩm demo cho cuộc thi; dữ liệu là **dữ liệu giả lập**, không có thông tin người thật.
+
+### Ai dùng và dùng để làm gì
+
+| Vai trò | Việc chính |
+| --- | --- |
+| **Dược sĩ** (`pharmacist`) | Xác minh đơn, xem dị ứng, phát thuốc theo lô, từ chối có lý do, nhập kho, xem lịch sử và nhật ký |
+| **Người bệnh** | Mang đơn có mã QR; quyết định có cho nhà thuốc xem dữ liệu hay không (qua MyHealth) |
+| **Bệnh viện, trạm y tế** | Trả lời câu hỏi của nhà thuốc qua Junctura (không đăng nhập vào Pharmacy) |
+
+## Tính năng nổi bật
+
+**Xác minh đơn**
+- Quét mã QR trên đơn (máy quét gõ như bàn phím) hoặc nhập tay mã đơn và mã người bệnh.
+- Một màn hình cho biết: đơn hợp lệ không, ngày kê, hạn dùng, danh sách thuốc, đã phát chưa, và dị ứng của người bệnh, kèm nguồn và thời điểm nhận dữ liệu.
+- Danh sách dị ứng rỗng luôn là "chưa ghi nhận", không bao giờ là "không dị ứng"; không lấy được thông tin dị ứng thì nhắc dược sĩ hỏi người bệnh trước khi phát.
+- Chưa có đồng thuận thì hiện rõ "người bệnh chưa đồng ý", không hiện như dữ liệu rỗng.
+
+**Phát thuốc và kho**
+- Phát từng dòng thuốc với số lượng và số lô; máy chủ **xác minh lại đơn** trước khi ghi, không tin kết quả cũ từ trình duyệt.
+- Không cho phát đơn hết hạn, đơn đã phát, thuốc hoặc số lượng không khớp đơn, lô đã hết hạn hoặc không đủ hàng.
+- Từ chối phát luôn kèm lý do.
+- Kho theo lô: tồn kho = số đã nhập trừ số đã phát; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô mới.
+
+**Lịch sử và nhật ký**
+- Lịch sử các đơn đã phát và đã từ chối, không hiện mã người bệnh.
+- "Nhật ký": mỗi lần nhà thuốc hỏi Junctura — năng lực nào, mục đích, kết quả, đơn nào, dược sĩ nào. Nhật ký không lưu người bệnh, thuốc hay dị ứng.
+- Giao diện dựng trên [`@junctura/health-ui`](https://www.npmjs.com/package/@junctura/health-ui): sáng/tối, cỡ chữ, dùng được trên điện thoại.
+
+## Kiến trúc
+
+```mermaid
+flowchart TB
+  subgraph BROWSER["Trình duyệt"]
+    SPA["Giao diện dược sĩ<br/>React 19 · health-ui"]
+  end
+
+  subgraph PHARMACY["Junctura Pharmacy · Node.js 24"]
+    API["API dược sĩ<br/>OIDC · chỉ vai trò pharmacist"]
+    CALL["Lớp gọi năng lực<br/>@junctura/server-client"]
+  end
+
+  J["Junctura DX-OS · Tầng 1<br/>định danh · đồng thuận · vé gọi · nhật ký chuỗi băm · kho bản ghi"]
+  H["Hospital<br/>prescription-verify"]
+  C["Clinic<br/>allergy-list"]
+
+  SPA --> API --> CALL
+  API -. đăng nhập .-> J
+  CALL -- gọi năng lực --> J
+  API -- lịch sử · kho · nhật ký --> J
+  J -- vé dùng một lần --> H
+  J -- vé dùng một lần --> C
+```
+
+Pharmacy không gọi thẳng ứng dụng khác và không đọc cơ sở dữ liệu của ứng dụng khác; mọi trao đổi đi qua Junctura. Lịch sử phát thuốc, kho và nhật ký lưu trong kho bản ghi của Tầng 1, nên Pharmacy không cần cơ sở dữ liệu riêng.
+
+### Một lần xác minh đơn diễn ra thế nào
+
+```mermaid
+sequenceDiagram
+  participant D as Dược sĩ
+  participant P as Pharmacy
+  participant J as Junctura
+  participant H as Hospital
+  participant C as Clinic
+  D->>P: Quét mã QR trên đơn
+  par Đơn thuốc
+    P->>J: prescription-verify (dispensing, người bệnh)
+    J->>J: Kiểm tra đồng thuận, ghi nhật ký chuỗi băm
+    J->>H: Gọi kèm vé dùng một lần
+    H-->>J: Đơn hợp lệ, thuốc, đã phát chưa
+  and Dị ứng
+    P->>J: allergy-list (dispensing, người bệnh)
+    J->>C: Gọi kèm vé dùng một lần
+    C-->>J: Dị ứng và allergyState
+  end
+  J-->>P: Hai kết quả
+  P->>P: Tính có phát được không, ghi nhật ký (không có nội dung)
+  P-->>D: Kết quả nhìn một lần
+```
+
+### Hai năng lực Pharmacy gọi
+
+Theo [hợp đồng dùng chung](https://github.com/vku2-open-source-2026/junctura-health/tree/main/contracts) (`@junctura/health-contracts` 1.1.0). Pharmacy chỉ là bên gọi, không cung cấp năng lực nào.
 
 | Năng lực | Bên cung cấp | Mục đích | Cấp cứu |
 | --- | --- | --- | --- |
 | `prescription-verify` | Hospital | `dispensing` | Không |
 | `allergy-list` | Clinic | `dispensing` | Có |
 
-Pharmacy không gọi thẳng ứng dụng khác và không đọc database hay seed dữ liệu của ứng dụng khác; mọi trao đổi đi qua Junctura.
+Kết quả mỗi lần gọi là một trong: `ok`, `no-consent`, `not-authorized`, `unavailable`, `failed`, `invalid-output`.
 
-## Hiện có
+### Mã QR trên đơn
 
-- **Đăng nhập bằng Junctura** (OpenID Connect, PKCE): chỉ nhân viên nhà thuốc (tài khoản của ứng dụng này) xem được trang chủ; người khác nhận 403.
-- **Xác minh đơn thuốc** bằng mã QR hoặc nhập tay: gọi `prescription-verify` và `allergy-list` qua Junctura, hiển thị dị ứng trước khi phát thuốc.
-- **Phát thuốc theo lô** và **từ chối có lý do**; mỗi thao tác được ghi vào lịch sử lưu ở kho bản ghi của Junctura.
-- **Lịch sử** các đơn đã phát và đã từ chối.
-- **Kho** theo lô: tồn kho = số đã nhập trừ số đã phát; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô mới. Máy chủ từ chối phát từ lô đã hết hạn hoặc không đủ hàng. Nạp kho mẫu bằng `npm run seed:stock`.
-- **Nhật ký** các lần nhà thuốc gọi Junctura (năng lực, mục đích, kết quả, dược sĩ, thời điểm); không lưu thông tin người bệnh.
+Mọi năng lực đều cần biết người bệnh (`context.dataSubject`), nên mã QR trên đơn chứa cả mã đơn và mã người bệnh theo quy ước tạm `JH1|RX|<mã đơn>|<mã người bệnh>`, ví dụ `JH1|RX|DT-2026-004521|3f8a2c1e-9b4d-4c7a-8e2f-1a2b3c4d5e6f`. Mã đơn dài 1–32 ký tự và không chứa `|`; mã người bệnh là UUID chữ thường. Quy ước sẽ chuyển sang bộ đọc dùng chung khi `@junctura/health-contracts` có.
 
-## Chưa có
+### Mô hình bảo mật
 
-- Quét mã bằng camera (hiện dùng máy quét gõ như bàn phím, hoặc nhập tay).
-- Kho bản ghi của Junctura chỉ liệt kê 100 bản ghi mới nhất mỗi loại, nên lịch sử, nhật ký và kho chỉ tính trong phạm vi đó.
-- Dấu "đã phát" chỉ được ghi ở nhà thuốc; bệnh viện chưa được báo lại khi đơn đã phát.
+| Lớp | Cơ chế |
+| --- | --- |
+| Xác thực | Đăng nhập Junctura (OpenID Connect, PKCE); máy chủ kiểm tra chữ ký RS256, nhà cấp và hạn của token. Chỉ tài khoản dược sĩ của ứng dụng này vào được; người khác nhận 403 |
+| Lấy dữ liệu | Chỉ qua Junctura, mục đích `dispensing`, người bệnh đi qua `context.dataSubject`; kết quả được kiểm tra theo schema của hợp đồng |
+| Ghi dữ liệu | Máy chủ xác minh lại đơn trước khi phát; số lượng và thuốc phải khớp đơn; hàm lượng lấy từ đơn, không lấy từ trình duyệt |
+| Riêng tư | Phản hồi API, lịch sử và nhật ký không có mã người bệnh; nhật ký không chứa thuốc hay dị ứng; máy chủ chỉ ghi mã lỗi ra log |
+| Đầu vào | JSON tối đa 4 KiB, đúng `content-type`; sai thì trả 400, 413 hoặc 415 |
+| Bí mật | Thông tin kết nối Junctura nằm trong biến môi trường hoặc file `.env` (đã loại khỏi git); không đưa ra trình duyệt, không đóng vào ảnh Docker |
 
-## Yêu cầu
+## Bắt đầu nhanh
 
-- Node.js 24 (xem `.node-version`). Máy chủ chỉ dùng tính năng có từ Node 22.
-- [junctura-dxos](https://github.com/vku2-open-source-2026/junctura-dxos) đang chạy và [junctura-health](https://github.com/vku2-open-source-2026/junctura-health) đã chạy `npm run demo:setup`. Cả hai nằm cạnh thư mục này; nếu ở nơi khác, đặt `JUNCTURA_HEALTH_DIR`.
-
-## Build từ mã nguồn
+**Yêu cầu:** Git, Node.js 24 (xem `.node-version`). Chạy đủ cả hệ thống cần thêm Docker, [junctura-dxos](https://github.com/vku2-open-source-2026/junctura-dxos) đang chạy (`npm run local:up`) và [junctura-health](https://github.com/vku2-open-source-2026/junctura-health) đã chạy `npm run demo:setup`. Hai repo này nằm cạnh thư mục Pharmacy; nếu ở nơi khác, đặt `JUNCTURA_HEALTH_DIR`.
 
 ```sh
 git clone https://github.com/vku2-open-source-2026/junctura-pharmacy.git
 cd junctura-pharmacy
-npm run check
-npm test                # kiểm thử máy chủ
-npm run web:install     # cài thư viện giao diện từ lockfile
-npm run web:test        # kiểm thử giao diện
-npm run build           # build giao diện vào web/dist
+npm ci                # cài thư viện máy chủ từ lockfile
+npm run web:install   # cài thư viện giao diện từ lockfile
+npm run build         # build giao diện vào web/dist
+npm run seed:stock    # (tùy chọn) nạp kho thuốc mẫu
+npm start             # chạy máy chủ
 ```
 
-## Chạy
+Mở <http://localhost:5184> và đăng nhập bằng `duocsi.nhathuoc`. Mật khẩu demo nằm trong `.junctura/demo/accounts.env` của junctura-health.
 
-```sh
-npm start
-```
-
-Mở <http://localhost:5184> và đăng nhập bằng `duocsi.nhathuoc`. Mật khẩu demo nằm trong `.junctura/demo/accounts.env` của junctura-health. Máy chủ đọc thông tin kết nối từ `.junctura/demo/junctura-pharmacy.env` do `demo:setup` tạo (xem [`.env.example`](.env.example)); chạy mà thiếu thì nó báo rõ biến nào cần.
-
-Khi sửa giao diện, chạy hai tiến trình: `npm run dev:server` (API ở cổng 5194) và `npm run dev` (giao diện ở cổng 5184, tự chuyển `/api` sang cổng 5194).
-
-## Chạy bằng Docker
-
-Image chép sẵn giao diện đã build, đọc `junctura-health` chỉ đọc tại `/junctura-health` và nhận cấu hình `JUNCTURA_*` qua `--env-file`:
+**Chạy bằng Docker.** Ảnh dựng từ [`Dockerfile`](Dockerfile) (build nhiều giai đoạn, chạy bằng người dùng không phải root). Thông tin kết nối truyền bằng `--env-file`, junctura-health gắn ở chế độ chỉ đọc:
 
 ```sh
 docker build -t junctura-pharmacy:dev .
@@ -76,16 +162,125 @@ docker run --rm -p 5184:5184 \
   junctura-pharmacy:dev
 ```
 
-Mở <http://localhost:5184>. Nếu `JUNCTURA_URL` trỏ tới Junctura đang chạy trên máy chủ, thêm `--add-host=host.docker.internal:host-gateway` và đặt `JUNCTURA_URL` trong env-file cho phù hợp; khi dùng chung compose với junctura-health, dùng địa chỉ dịch vụ trong mạng compose.
+Nếu `JUNCTURA_URL` trỏ tới Junctura chạy trên máy chủ, thêm `--add-host=host.docker.internal:host-gateway` và đổi `JUNCTURA_URL` trong env-file cho phù hợp.
 
-## Mã QR trên đơn
+**Phát triển giao diện.** Chạy `npm run dev:server` (API, cổng 5194) và `npm run dev` (giao diện, cổng 5184, tự chuyển `/api` sang 5194).
 
-Quy ước tạm (sẽ chuyển vào bộ phân tích dùng chung khi `@junctura/health-contracts` có): `JH1|RX|<mã đơn>|<mã người bệnh>`. Trong đó `<mã đơn>` dài 1–32 ký tự và không chứa `|`, còn `<mã người bệnh>` là UUID chữ thường, ví dụ `JH1|RX|DT-2026-004521|3f8a2c1e-9b4d-4c7a-8e2f-1a2b3c4d5e6f`.
+### Lệnh thường dùng
+
+| Lệnh | Tác dụng |
+| --- | --- |
+| `npm start` | Chạy máy chủ và giao diện đã build |
+| `npm run build` | Build giao diện vào `web/dist` |
+| `npm run dev:server` · `npm run dev` | Chạy API và giao diện ở chế độ phát triển |
+| `npm run seed:stock` | Nạp kho mẫu từ danh mục thuốc dùng chung; chạy lại không nhân đôi |
+| `npm run check` | Kiểm tra header SPDX, giấy phép và thư viện |
+| `npm run check:reuse` | Kiểm tra tuân thủ REUSE 3.3 (cần `pip install -r requirements-reuse.txt`, hoặc `docker run --rm -v "$PWD":/data fsfe/reuse:6.2.0 lint`) |
+| `npm test` · `npm run web:test` | Kiểm thử máy chủ · kiểm thử giao diện |
+
+## Cấu hình
+
+Máy chủ đọc kết nối từ `.junctura/demo/junctura-pharmacy.env` do `demo:setup` tạo (mẫu: [`.env.example`](.env.example)); thiếu biến bắt buộc thì nó báo rõ biến đó. Biến môi trường thật luôn thắng giá trị trong file.
+
+| Biến | Ý nghĩa | Mặc định |
+| --- | --- | --- |
+| `JUNCTURA_HEALTH_DIR` | Vị trí repo junctura-health (danh sách nhân viên, file kết nối) | `../junctura-health` |
+| `JUNCTURA_PHARMACY_ENV` | Dùng file kết nối khác | `<JUNCTURA_HEALTH_DIR>/.junctura/demo/junctura-pharmacy.env` |
+| `JUNCTURA_ISSUER`, `JUNCTURA_WEB_CLIENT_ID` | Nhà cấp định danh và client đăng nhập của giao diện (bắt buộc) | không có |
+| `JUNCTURA_URL`, `JUNCTURA_APP_CLIENT_ID`, `JUNCTURA_APP_CLIENT_SECRET` | Gateway của Junctura và tài khoản kỹ thuật của máy chủ; thiếu thì vẫn đăng nhập được nhưng xác minh, phát thuốc, kho và nhật ký trả 503 | không có |
+| `PORT` (hoặc `WEB_PORT`), `HOST` | Địa chỉ lắng nghe của giao diện và API | `5184`, `127.0.0.1` |
+| `PHARMACY_STATIC_DIR` | Thư mục giao diện đã build | `web/dist` |
+
+## Trang và API chính
+
+| Trang | Địa chỉ |
+| --- | --- |
+| Xác minh đơn (kèm phát thuốc và từ chối) | `/` |
+| Lịch sử | `/lich-su` |
+| Kho | `/kho` |
+| Nhật ký | `/nhat-ky` |
+
+Mọi API dưới đây cần đăng nhập bằng tài khoản dược sĩ, trừ `/api/config` và `/healthz`.
+
+| Endpoint | Mô tả |
+| --- | --- |
+| `POST /api/verify` | Xác minh đơn (`{ qr }` hoặc `{ prescriptionCode, patient }`): đơn, dị ứng, có phát được không và lý do |
+| `POST /api/dispense` | Phát thuốc theo lô; máy chủ xác minh lại đơn trước khi ghi |
+| `POST /api/refuse` | Từ chối phát, kèm lý do 3–200 ký tự |
+| `GET /api/history` | Lịch sử phát và từ chối |
+| `GET /api/stock` · `POST /api/stock` | Tồn kho theo lô · nhập lô mới |
+| `GET /api/call-log` | Nhật ký các lần gọi Junctura |
+| `GET /api/me` · `GET /api/config` · `GET /healthz` | Người đang đăng nhập · cấu hình công khai · kiểm tra sống |
+
+## Công nghệ
+
+| Thành phần | Công nghệ |
+| --- | --- |
+| Máy chủ | Node.js 24, không framework; [`@junctura/server-client`](https://www.npmjs.com/package/@junctura/server-client), [`@junctura/health-contracts`](https://www.npmjs.com/package/@junctura/health-contracts) |
+| Lưu trữ | Kho bản ghi của Junctura (lịch sử, kho, nhật ký); không có cơ sở dữ liệu riêng |
+| Giao diện | React 19, Vite, TypeScript, Tailwind CSS, [`@junctura/health-ui`](https://www.npmjs.com/package/@junctura/health-ui), `lucide-react` |
+| Đóng gói, CI | npm, Docker, GitHub Actions |
+
+Thư viện bên thứ ba được khai trong `package.json` và `package-lock.json` (gốc và `web/`), cài từ registry; không chép mã nguồn của chúng vào repo.
+
+## Tài liệu
+
+| | |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Quy trình đóng góp, quy tắc bắt buộc |
+| [CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi |
+| [`.env.example`](.env.example) | Mẫu biến môi trường |
+| [Tính năng từng ứng dụng](https://github.com/vku2-open-source-2026/junctura-health/blob/main/docs/APPS.md) | Phạm vi Pharmacy trong Junctura Health |
+| [Hợp đồng năng lực](https://github.com/vku2-open-source-2026/junctura-health/tree/main/contracts) | Dữ liệu vào, ra, mục đích được phép |
+| [Dựng ứng dụng Tầng 2 mới](https://github.com/vku2-open-source-2026/junctura-health/blob/main/docs/new-app.md) | Cách Pharmacy được dựng trên Junctura |
+| [Junctura DX-OS](https://github.com/vku2-open-source-2026/junctura-dxos) | Tầng 1: định danh, đồng thuận, vé gọi, nhật ký |
+
+## Cấu trúc thư mục
+
+```text
+server/         API, đăng nhập, gọi năng lực, xác minh, phát thuốc, kho, nhật ký
+web/            giao diện React (web/src)
+tests/          kiểm thử máy chủ
+scripts/        kiểm tra SPDX và REUSE, nạp kho mẫu
+docs/assets/    logo
+Dockerfile      ảnh container (build nhiều giai đoạn)
+```
+
+## Kiểm thử
+
+```sh
+npm run check         # header SPDX, giấy phép, thư viện
+npm run check:reuse   # REUSE 3.3
+npm test              # máy chủ: đăng nhập, gọi năng lực, xác minh, phát thuốc, kho, nhật ký
+npm run web:test      # giao diện: xác minh, phát thuốc, lịch sử, kho, nhật ký
+```
+
+GitHub Actions chạy cả bốn lệnh và build giao diện ở mỗi Pull Request.
+
+## Lộ trình
+
+- [x] Đăng nhập Junctura cho dược sĩ.
+- [x] Gọi `prescription-verify` và `allergy-list` qua Junctura.
+- [x] Xác minh đơn bằng QR hoặc nhập tay, cảnh báo dị ứng.
+- [x] Phát thuốc theo lô, từ chối có lý do, lịch sử.
+- [x] Kho theo lô và nhật ký các lần gọi Junctura.
+- [x] Đóng gói Docker.
+- [ ] Chạy cùng bộ năm ứng dụng bằng một lệnh `docker compose` của junctura-health.
+- [ ] Đọc mã QR bằng bộ đọc dùng chung trong `@junctura/health-contracts`.
+- [ ] Bản phát hành `v0.1.0` kèm gói `.tar.gz`.
+
+Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh viện chưa được báo lại; kho bản ghi của Junctura chỉ liệt kê 100 bản ghi mới nhất mỗi loại, nên lịch sử, kho và nhật ký chỉ tính trong phạm vi đó; chưa quét mã bằng camera. Tiến độ chi tiết ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
 
 ## Đóng góp
 
-Xem [CONTRIBUTING.md](CONTRIBUTING.md). Báo lỗi và đề xuất ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
+Mọi đóng góp đều được hoan nghênh. Báo lỗi và đề xuất tại [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues). Trước khi gửi Pull Request, đọc [CONTRIBUTING.md](CONTRIBUTING.md). Commit theo chuẩn Conventional Commits và không bao giờ commit tệp `.env` hay khóa bí mật. Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
 
 ## Giấy phép
 
-Mã nguồn phát hành theo [Apache License 2.0](LICENSE); xem thêm [NOTICE](NOTICE). Mỗi file nguồn ghi giấy phép bằng header SPDX; file không ghi chú thích được (JSON, dữ liệu) được khai trong [REUSE.toml](REUSE.toml). Repo tuân thủ [REUSE 3.3](https://reuse.software/spec-3.3/).
+Junctura Pharmacy là phần mềm tự do, phát hành theo [Apache License 2.0](LICENSE), một giấy phép nguồn mở được OSI phê chuẩn — Copyright 2026 Junctura Contributors. Bạn được dùng, sửa đổi và phân phối lại (kể cả cho mục đích thương mại), miễn là giữ lại thông báo bản quyền và giấy phép, ghi rõ các thay đổi; giấy phép cũng cấp quyền sử dụng bằng sáng chế liên quan và không kèm bảo hành.
+
+<!-- REUSE-IgnoreStart -->
+- Mỗi tệp mã nguồn đều ghi giấy phép bằng tiêu đề [SPDX](https://spdx.dev/) (`SPDX-License-Identifier: Apache-2.0`); các tệp không chứa được chú thích (JSON, dữ liệu) được khai báo trong [REUSE.toml](REUSE.toml). Dự án tuân thủ chuẩn [REUSE 3.3](https://reuse.software/), kiểm tra bằng `reuse lint`.
+<!-- REUSE-IgnoreEnd -->
+- Toàn văn giấy phép: [LICENSE](LICENSE) · thông báo bản quyền: [NOTICE](NOTICE).
+- Thành phần bên thứ ba giữ giấy phép riêng và đều là giấy phép nguồn mở; chúng được khai trong `package.json`, cài từ registry, không chép hay sửa mã nguồn.
