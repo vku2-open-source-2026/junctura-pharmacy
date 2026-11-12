@@ -152,3 +152,23 @@ export interface ReceiveStockInput {
   quantity: number;
   expiresAt: string;
 }
+
+export interface OverviewToday {
+  verified: number;
+  dispensed: number;
+  refused: number;
+  noConsent: number;
+  allergyOverrides: number;
+}
+
+export interface OverviewStock {
+  counts: StockCounts;
+  attention: StockItem[];
+}
+
+export interface OverviewResult {
+  date: string;
+  today: OverviewToday | null;
+  stock: OverviewStock | null;
+  recent: HistoryItem[] | null;
+}

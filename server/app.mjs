@@ -3,6 +3,7 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
 import { AuthError } from "./jwt.mjs";
+import { buildOverview } from "./overview.mjs";
 import { isLowercaseUuid, isValidPrescriptionCode, parsePrescriptionQr } from "./prescription-qr.mjs";
 import { runVerification } from "./verify.mjs";
 
@@ -15,6 +16,7 @@ const API_METHODS = new Map([
   ["/api/history", "GET, HEAD"],
   ["/api/call-log", "GET, HEAD"],
   ["/api/stock", "GET, HEAD, POST"],
+  ["/api/overview", "GET, HEAD"],
 ]);
 
 const TYPES = {
@@ -334,6 +336,21 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     }
   }
 
+  async function overviewRoute(req, res) {
+    if (!dispensing && !callLog && !stock) return send(res, 503, { error: "junctura-not-configured" });
+    const now = new Date();
+    const optional = load => Promise.resolve().then(load).catch(error => {
+      console.error(error?.code ?? "store-unavailable");
+      return null;
+    });
+    const [calls, history, lots] = await Promise.all([
+      callLog ? optional(() => callLog.list()) : null,
+      dispensing ? optional(() => dispensing.list()) : null,
+      stock ? optional(() => stock.summary(now)) : null,
+    ]);
+    return send(res, 200, buildOverview({ now, calls, history, stock: lots }));
+  }
+
   async function api(req, res, url) {
     if (url.pathname === "/api/config") {
       return send(res, 200, { issuer: config.issuer, clientId: config.webClientId, facility: data.facility });
@@ -352,6 +369,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       if (url.pathname === "/api/refuse") return refuse(req, res, user);
       if (url.pathname === "/api/call-log") return callLogRoute(req, res);
       if (url.pathname === "/api/stock") return stockRoute(req, res, user);
+      if (url.pathname === "/api/overview") return overviewRoute(req, res);
       return history(req, res);
     }
     if (!user) return send(res, 403, { error: "not-pharmacy-staff" });

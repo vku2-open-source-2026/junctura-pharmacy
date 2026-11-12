@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import { AppShell, Badge, Button, ErrorState, PermissionState, SignInPage, Skeleton, type NavGroup } from "@junctura/health-ui";
-import { ClipboardList, History as HistoryIcon, Package, ScanLine } from "lucide-react";
+import { ClipboardList, History as HistoryIcon, LayoutDashboard, Package, ScanLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, getConfig, getMe } from "./api";
 import { buildLogoutUrl, clearSession, completeLogin, loadSession, startLogin } from "./auth";
@@ -11,6 +11,7 @@ import { Landing } from "./Landing";
 import { navigate, useLocation } from "./router";
 import { NotFound, SessionProvider } from "./session";
 import { Stock } from "./Stock";
+import { Today } from "./Today";
 import type { Me, PublicConfig } from "./types";
 import { Verify } from "./Verify";
 
@@ -28,6 +29,7 @@ const NAV: NavGroup[] = [
     label: "Nhà thuốc",
     items: [
       { id: "/", label: "Xác minh đơn", icon: <ScanLine aria-hidden className="size-4" /> },
+      { id: "/hom-nay", label: "Hôm nay", icon: <LayoutDashboard aria-hidden className="size-4" /> },
       { id: "/lich-su", label: "Lịch sử", icon: <HistoryIcon aria-hidden className="size-4" /> },
       { id: "/kho", label: "Kho", icon: <Package aria-hidden className="size-4" /> },
       { id: "/nhat-ky", label: "Nhật ký", icon: <ClipboardList aria-hidden className="size-4" /> },
@@ -35,7 +37,9 @@ const NAV: NavGroup[] = [
   },
 ];
 
-const CURRENT: Record<string, string> = { "/": "/", "/lich-su": "/lich-su", "/kho": "/kho", "/nhat-ky": "/nhat-ky" };
+const CURRENT: Record<string, string> = {
+  "/": "/", "/hom-nay": "/hom-nay", "/lich-su": "/lich-su", "/kho": "/kho", "/nhat-ky": "/nhat-ky",
+};
 
 export function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
@@ -99,13 +103,15 @@ export function App() {
   const me = state.me;
   const page = path === "/"
     ? <Verify />
-    : path === "/lich-su"
-      ? <History />
-      : path === "/kho"
-        ? <Stock />
-        : path === "/nhat-ky"
-          ? <CallLog />
-          : <NotFound />;
+    : path === "/hom-nay"
+      ? <Today />
+      : path === "/lich-su"
+        ? <History />
+        : path === "/kho"
+          ? <Stock />
+          : path === "/nhat-ky"
+            ? <CallLog />
+            : <NotFound />;
 
   return (
     <SessionProvider value={{ settings: settings!, facility: config!.facility, expire, setCrumbs }}>

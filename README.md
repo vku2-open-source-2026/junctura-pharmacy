@@ -47,6 +47,10 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 - Danh sách dị ứng rỗng luôn là "chưa ghi nhận", không bao giờ là "không dị ứng"; không lấy được thông tin dị ứng thì nhắc dược sĩ hỏi người bệnh trước khi phát.
 - Chưa có đồng thuận thì hiện rõ "người bệnh chưa đồng ý", không hiện như dữ liệu rỗng.
 
+**Hôm nay**
+- Trang tổng quan trong ngày theo giờ Việt Nam: số đơn đã xác minh, đã phát, đã từ chối, chưa có đồng thuận và phát dù trùng dị ứng.
+- Lô thuốc cần chú ý (hết hạn, hết hàng, sắp hết hạn, sắp hết) và 5 đơn phát/từ chối gần nhất; phần nào lỗi chỉ báo phần đó.
+
 **Phát thuốc và kho**
 - Phát từng dòng thuốc với số lượng và số lô; máy chủ **xác minh lại đơn** trước khi ghi, không tin kết quả cũ từ trình duyệt.
 - Không cho phát đơn hết hạn, đơn đã phát, thuốc hoặc số lượng không khớp đơn, lô đã hết hạn hoặc không đủ hàng.
@@ -196,6 +200,7 @@ Máy chủ đọc kết nối từ `.junctura/demo/junctura-pharmacy.env` do `de
 | Trang | Địa chỉ |
 | --- | --- |
 | Xác minh đơn (kèm phát thuốc và từ chối) | `/` |
+| Hôm nay | `/hom-nay` |
 | Lịch sử | `/lich-su` |
 | Kho | `/kho` |
 | Nhật ký | `/nhat-ky` |
@@ -210,6 +215,7 @@ Mọi API dưới đây cần đăng nhập bằng tài khoản dược sĩ, tr�
 | `GET /api/history` | Lịch sử phát và từ chối |
 | `GET /api/stock` · `POST /api/stock` | Tồn kho theo lô · nhập lô mới |
 | `GET /api/call-log` | Nhật ký các lần gọi Junctura |
+| `GET /api/overview` | Tổng quan trong ngày (giờ Việt Nam), kho cần chú ý và đơn gần đây |
 | `GET /api/me` · `GET /api/config` · `GET /healthz` | Người đang đăng nhập · cấu hình công khai · kiểm tra sống |
 
 ## Công nghệ
