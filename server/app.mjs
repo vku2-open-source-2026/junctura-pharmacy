@@ -16,6 +16,7 @@ const API_METHODS = new Map([
   ["/api/history", "GET, HEAD"],
   ["/api/call-log", "GET, HEAD"],
   ["/api/stock", "GET, HEAD, POST"],
+  ["/api/stock/adjust", "POST"],
   ["/api/overview", "GET, HEAD"],
   ["/api/audit", "GET, HEAD"],
 ]);
@@ -359,6 +360,36 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     }
   }
 
+  // Dispose of part of a lot (damaged, expired) or record a physical count. A reason is required.
+  async function adjustStock(req, res, user) {
+    if (!stock) return send(res, 503, { error: "junctura-not-configured" });
+    if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+    const parsed = await readJsonBody(req);
+    if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+    if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
+    const body = parsed.body;
+    if (!body || typeof body !== "object" || Array.isArray(body)) return send(res, 400, { error: "invalid-request" });
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    const valid = typeof body.name === "string" && typeof body.lot === "string"
+      && [...reason].length >= 3 && [...reason].length <= 200
+      && ((body.kind === "dispose" && Number.isInteger(body.quantity) && body.quantity >= 1)
+        || (body.kind === "count" && Number.isInteger(body.counted) && body.counted >= 0 && body.counted <= 100000));
+    if (!valid) return send(res, 400, { error: "invalid-request" });
+    try {
+      const lot = (await stock.summary()).find(item => item.name === body.name && item.lot === body.lot);
+      if (!lot) return send(res, 404, { error: "unknown-lot" });
+      if (body.kind === "dispose" && body.quantity > lot.onHand) return send(res, 409, { error: "exceeds-on-hand" });
+      const removed = body.kind === "dispose" ? body.quantity : lot.onHand - body.counted;
+      const entry = await stock.adjust({ name: lot.name, lot: lot.lot, kind: body.kind, removed, reason, by: user.username, at: new Date().toISOString() });
+      await logAction(user, "stock-adjust", undefined, body.kind === "dispose"
+        ? `Xuất hủy ${removed} ${lot.name} · lô ${lot.lot}`
+        : `Kiểm kê ${lot.name} · lô ${lot.lot}: còn ${body.counted} (chênh ${-removed})`);
+      return send(res, 201, entry);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
   async function stockRoute(req, res, user) {
     if (!stock) return send(res, 503, { error: "junctura-not-configured" });
     if (req.method === "POST") return receiveStock(req, res, user);
@@ -408,6 +439,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       if (url.pathname === "/api/refuse") return refuse(req, res, user);
       if (url.pathname === "/api/call-log") return callLogRoute(req, res);
       if (url.pathname === "/api/stock") return stockRoute(req, res, user);
+      if (url.pathname === "/api/stock/adjust") return adjustStock(req, res, user);
       if (url.pathname === "/api/overview") return overviewRoute(req, res);
       return history(req, res);
     }
