@@ -21,7 +21,7 @@ const wrap = () => render(<SessionProvider value={session}><Stock /></SessionPro
 
 const item = (overrides: Partial<StockItem>): StockItem => ({
   name: "Thuốc", strength: "1 mg", lot: "LOT", expiresAt: "2027-01-01",
-  received: 100, dispensed: 0, onHand: 100, status: "ok", ...overrides,
+  received: 100, dispensed: 0, adjusted: 0, onHand: 100, status: "ok", ...overrides,
 });
 
 function stockResult(items: StockItem[]): StockResult {
@@ -86,6 +86,25 @@ describe("stock screen", () => {
     expect(within(table).getByText("5 / 100")).toBeTruthy();
   });
 
+  it("keeps lot numbers and expiry on one line and uses icon-only row actions", async () => {
+    mocked.getStock.mockResolvedValue(stockResult([ITEMS[0]]));
+    wrap();
+
+    const row = (await screen.findByText("LOT-A")).closest("tr");
+    expect(row).toBeTruthy();
+    expect(within(row as HTMLElement).getByText("LOT-A").className).toContain("whitespace-nowrap");
+    expect(row?.querySelector("time")?.className).toContain("whitespace-nowrap");
+
+    const dispose = within(row as HTMLElement).getByRole("button", { name: "Xuất hủy" });
+    const count = within(row as HTMLElement).getByRole("button", { name: "Kiểm kê" });
+    expect(dispose.getAttribute("title")).toBe("Xuất hủy lô thuốc");
+    expect(count.getAttribute("title")).toBe("Kiểm kê lô thuốc");
+    expect(dispose.textContent).toBe("");
+    expect(count.textContent).toBe("");
+    expect(dispose.querySelector("svg")).toBeTruthy();
+    expect(count.querySelector("svg")).toBeTruthy();
+  });
+
   it("suggests importing a lot or seeding when the stock is empty", async () => {
     mocked.getStock.mockResolvedValue(stockResult([]));
     wrap();
@@ -122,6 +141,22 @@ describe("stock screen", () => {
 
     expect(await screen.findByText("Thông tin lô chưa hợp lệ. Kiểm tra lại các trường rồi thử lại.")).toBeTruthy();
     expect(screen.queryByText(/invalid-request/)).toBeNull();
+  });
+
+  it("starts with the q parameter from the URL", async () => {
+    history.replaceState(null, "", "/kho?q=amox");
+    try {
+      mocked.getStock.mockResolvedValue(stockResult(ITEMS));
+      wrap();
+
+      const input = await screen.findByLabelText("Tìm theo tên thuốc hoặc số lô") as HTMLInputElement;
+      expect(input.value).toBe("amox");
+      const table = await screen.findByRole("table");
+      expect(within(table).getByText("Amoxicillin")).toBeTruthy();
+      expect(within(table).queryByText("Paracetamol")).toBeNull();
+    } finally {
+      history.replaceState(null, "", "/");
+    }
   });
 
   it("checks the fields before sending a lot", async () => {

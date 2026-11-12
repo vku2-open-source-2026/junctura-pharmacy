@@ -112,7 +112,7 @@ test("stock summary computes on-hand and every status at the 20 and 60 day bound
   const byLot = Object.fromEntries(items.map(item => [item.lot, item]));
 
   assert.deepEqual(items.map(item => item.lot), ["E2", "E1", "B60", "B61", "L1", "O1", "X1", "M1"]);
-  assert.deepEqual(byLot.L1, { name: "Low", strength: "1 mg", lot: "L1", expiresAt: exp(90), received: 30, dispensed: 10, onHand: 20, status: "low" });
+  assert.deepEqual(byLot.L1, { name: "Low", strength: "1 mg", lot: "L1", expiresAt: exp(90), received: 30, dispensed: 10, adjusted: 0, onHand: 20, status: "low" });
   assert.equal(byLot.O1.onHand, 21);
   assert.equal(byLot.O1.dispensed, 9);
   assert.equal(byLot.O1.status, "ok");

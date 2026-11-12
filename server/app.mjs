@@ -3,6 +3,9 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize, sep } from "node:path";
 import { AuthError } from "./jwt.mjs";
+import { buildOverview } from "./overview.mjs";
+import { buildReport, reportCsv, reportRange } from "./report.mjs";
+import { validSettings } from "./settings.mjs";
 import { isLowercaseUuid, isValidPrescriptionCode, parsePrescriptionQr } from "./prescription-qr.mjs";
 import { runVerification } from "./verify.mjs";
 
@@ -15,7 +18,15 @@ const API_METHODS = new Map([
   ["/api/history", "GET, HEAD"],
   ["/api/call-log", "GET, HEAD"],
   ["/api/stock", "GET, HEAD, POST"],
+  ["/api/stock/adjust", "POST"],
+  ["/api/overview", "GET, HEAD"],
+  ["/api/audit", "GET, HEAD"],
+  ["/api/report", "GET, HEAD"],
+  ["/api/report.csv", "GET, HEAD"],
+  ["/api/settings", "GET, HEAD, PUT"],
 ]);
+
+const HISTORY_ITEM = /^\/api\/history\/([A-Za-z0-9_-]{1,80})$/;
 
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -106,7 +117,7 @@ function isIsoDate(value) {
  * built web UI. Staff are the demo accounts of this application; every other signed-in
  * person is refused.
  */
-export function createApp({ config, data, verifier, capabilities, dispensing, callLog, stock }) {
+export function createApp({ config, data, verifier, capabilities, dispensing, callLog, stock, staffLog, settings }) {
   const base = securityHeaders(config);
 
   const send = (res, status, body, headers = {}) => {
@@ -136,8 +147,16 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       outcome,
       prescriptionCode: result.prescriptionCode,
       pharmacist: user.username,
+      pharmacistName: user.displayName,
       at,
     }).catch(error => console.error(error?.code ?? "call-log-unavailable"))));
+  }
+
+  // Staff actions are logged best effort: a failure never changes the answer.
+  async function logAction(user, action, prescriptionCode, detail) {
+    if (!staffLog) return;
+    await staffLog.add({ action, by: user.username, displayName: user.displayName, prescriptionCode, detail, at: new Date().toISOString() })
+      .catch(error => console.error(error?.code ?? "staff-log-unavailable"));
   }
 
   async function verify(req, res, user) {
@@ -153,6 +172,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
 
     const result = await runVerification({ capabilities, ...request });
     await recordCalls(result, user);
+    await logAction(user, "verify", result.prescriptionCode, result.dispensable ? "Đơn phát được" : "Đơn chưa phát được");
     return send(res, 200, result);
   }
 
@@ -174,7 +194,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
     if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
 
-    const request = verificationRequest(parsed.body, ["items"]);
+    const request = verificationRequest(parsed.body, ["items", "allergyOverride"]);
     if (!request || !Array.isArray(parsed.body.items)) return send(res, 400, { error: "invalid-request" });
 
     try {
@@ -205,6 +225,16 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       }
       if (items.length === 0) return send(res, 400, { error: "items-mismatch" });
 
+      // A medicine that matches a recorded allergy is only dispensed with a written reason,
+      // recomputed here from Junctura's answers rather than trusted from the browser.
+      const dispensedNames = new Set(items.map(item => item.name));
+      const conflicts = result.allergyConflicts.filter(conflict => dispensedNames.has(conflict.medicine));
+      const override = typeof parsed.body.allergyOverride === "string" ? parsed.body.allergyOverride.trim() : "";
+      if (parsed.body.allergyOverride !== undefined && ([...override].length < 10 || [...override].length > 200)) {
+        return send(res, 400, { error: "invalid-request" });
+      }
+      if (conflicts.length && !override) return send(res, 409, { error: "allergy-conflict", conflicts });
+
       // Stock is optional: a lot the pharmacy never received is still dispensed,
       // but a known lot must not be expired and must have enough on hand.
       if (stock) {
@@ -222,11 +252,15 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
         patient: request.patient,
         outcome: "dispensed",
         items,
+        ...(conflicts.length && { allergyOverride: override }),
         pharmacist: user.username,
+        pharmacistName: user.displayName,
         at: new Date().toISOString(),
       };
-      await dispensing.add(entry);
-      const { patient: omitted, ...visible } = entry;
+      const saved = await dispensing.add(entry);
+      await logAction(user, "dispense", entry.prescriptionCode,
+        `${items.length} thuốc${conflicts.length ? " · có ghi lý do vì trùng dị ứng" : ""}`);
+      const { patient: omitted, ...visible } = saved;
       return send(res, 201, visible);
     } catch (error) {
       return storeFailure(res, error);
@@ -254,21 +288,87 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
         outcome: "refused",
         reason,
         pharmacist: user.username,
+        pharmacistName: user.displayName,
         at: new Date().toISOString(),
       };
-      await dispensing.add(entry);
-      const { patient: omitted, ...visible } = entry;
+      const saved = await dispensing.add(entry);
+      await logAction(user, "refuse", entry.prescriptionCode, "Từ chối phát");
+      const { patient: omitted, ...visible } = saved;
       return send(res, 201, visible);
     } catch (error) {
       return storeFailure(res, error);
     }
   }
 
+  // Older records only kept the username; fill in the staff display name.
+  const named = entry => entry.pharmacistName || !entry.pharmacist
+    ? entry
+    : { ...entry, pharmacistName: data.staff.get(entry.pharmacist)?.displayName ?? entry.pharmacist };
+
   async function history(req, res) {
     if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
     try {
-      const items = (await dispensing.list()).map(({ patient, ...entry }) => entry);
+      const items = (await dispensing.list()).map(({ patient, ...entry }) => named(entry));
       return send(res, 200, { items });
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function historyItem(req, res, id) {
+    if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      const entry = await dispensing.get(id);
+      if (!entry) return send(res, 404, { error: "not-found" });
+      const { patient: omitted, ...visible } = entry;
+      return send(res, 200, named(visible));
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function settingsRoute(req, res, user) {
+    if (!settings) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      if (req.method !== "PUT") return send(res, 200, await settings.current());
+      if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+      const parsed = await readJsonBody(req);
+      if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+      const values = parsed.status ? null : validSettings(parsed.body);
+      if (!values) return send(res, 400, { error: "invalid-request" });
+      const saved = await settings.save(values, user.username);
+      await logAction(user, "settings-update", undefined, `Sắp hết khi còn ≤ ${values.lowStock} · sắp hết hạn trong ${values.expiringDays} ngày`);
+      return send(res, 200, saved);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function reportRoute(req, res, url) {
+    if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
+    const range = reportRange({ from: url.searchParams.get("from") ?? undefined, to: url.searchParams.get("to") ?? undefined });
+    if (!range) return send(res, 400, { error: "invalid-range" });
+    try {
+      const [history, calls] = await Promise.all([
+        dispensing.list(),
+        callLog ? callLog.list().catch(() => []) : [],
+      ]);
+      const report = buildReport({ range, history, calls });
+      if (url.pathname.endsWith(".csv")) {
+        res.writeHead(200, { ...base, "cache-control": "no-store", "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="bao-cao-nha-thuoc-${range.from}-${range.to}.csv"` });
+        return res.end(reportCsv(report));
+      }
+      return send(res, 200, report);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function auditRoute(req, res) {
+    if (!staffLog) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      return send(res, 200, { items: await staffLog.list() });
     } catch (error) {
       return storeFailure(res, error);
     }
@@ -277,7 +377,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
   async function callLogRoute(req, res) {
     if (!callLog) return send(res, 503, { error: "junctura-not-configured" });
     try {
-      return send(res, 200, { items: await callLog.list() });
+      return send(res, 200, { items: (await callLog.list()).map(named) });
     } catch (error) {
       return storeFailure(res, error);
     }
@@ -304,6 +404,37 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
 
     try {
       const entry = await stock.receive({ name, strength, lot, quantity, expiresAt, receivedBy: user.username });
+      await logAction(user, "stock-receive", undefined, `Nhập ${quantity} ${name} ${strength} · lô ${lot}`);
+      return send(res, 201, entry);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  // Dispose of part of a lot (damaged, expired) or record a physical count. A reason is required.
+  async function adjustStock(req, res, user) {
+    if (!stock) return send(res, 503, { error: "junctura-not-configured" });
+    if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+    const parsed = await readJsonBody(req);
+    if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+    if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
+    const body = parsed.body;
+    if (!body || typeof body !== "object" || Array.isArray(body)) return send(res, 400, { error: "invalid-request" });
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    const valid = typeof body.name === "string" && typeof body.lot === "string"
+      && [...reason].length >= 3 && [...reason].length <= 200
+      && ((body.kind === "dispose" && Number.isInteger(body.quantity) && body.quantity >= 1)
+        || (body.kind === "count" && Number.isInteger(body.counted) && body.counted >= 0 && body.counted <= 100000));
+    if (!valid) return send(res, 400, { error: "invalid-request" });
+    try {
+      const lot = (await stock.summary()).find(item => item.name === body.name && item.lot === body.lot);
+      if (!lot) return send(res, 404, { error: "unknown-lot" });
+      if (body.kind === "dispose" && body.quantity > lot.onHand) return send(res, 409, { error: "exceeds-on-hand" });
+      const removed = body.kind === "dispose" ? body.quantity : lot.onHand - body.counted;
+      const entry = await stock.adjust({ name: lot.name, lot: lot.lot, kind: body.kind, removed, reason, by: user.username, at: new Date().toISOString() });
+      await logAction(user, "stock-adjust", undefined, body.kind === "dispose"
+        ? `Xuất hủy ${removed} ${lot.name} · lô ${lot.lot}`
+        : `Kiểm kê ${lot.name} · lô ${lot.lot}: còn ${body.counted} (chênh ${-removed})`);
       return send(res, 201, entry);
     } catch (error) {
       return storeFailure(res, error);
@@ -323,6 +454,21 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     }
   }
 
+  async function overviewRoute(req, res) {
+    if (!dispensing && !callLog && !stock) return send(res, 503, { error: "junctura-not-configured" });
+    const now = new Date();
+    const optional = load => Promise.resolve().then(load).catch(error => {
+      console.error(error?.code ?? "store-unavailable");
+      return null;
+    });
+    const [calls, history, lots] = await Promise.all([
+      callLog ? optional(() => callLog.list()) : null,
+      dispensing ? optional(() => dispensing.list()) : null,
+      stock ? optional(() => stock.summary(now)) : null,
+    ]);
+    return send(res, 200, buildOverview({ now, calls, history, stock: lots }));
+  }
+
   async function api(req, res, url) {
     if (url.pathname === "/api/config") {
       return send(res, 200, { issuer: config.issuer, clientId: config.webClientId, facility: data.facility });
@@ -334,13 +480,20 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       if (!(error instanceof AuthError)) console.error(`token check failed: ${error.message}`);
       return send(res, 401, { error: "unauthenticated" }, { "www-authenticate": "Bearer" });
     }
-    if (API_METHODS.has(url.pathname)) {
+    const historyMatch = HISTORY_ITEM.exec(url.pathname);
+    if (API_METHODS.has(url.pathname) || historyMatch) {
       if (!user || user.role !== "pharmacist") return send(res, 403, { error: "not-pharmacist" });
+      if (historyMatch) return historyItem(req, res, historyMatch[1]);
+      if (url.pathname === "/api/audit") return auditRoute(req, res);
+      if (url.pathname === "/api/settings") return settingsRoute(req, res, user);
+      if (url.pathname === "/api/report" || url.pathname === "/api/report.csv") return reportRoute(req, res, url);
       if (url.pathname === "/api/verify") return verify(req, res, user);
       if (url.pathname === "/api/dispense") return dispense(req, res, user);
       if (url.pathname === "/api/refuse") return refuse(req, res, user);
       if (url.pathname === "/api/call-log") return callLogRoute(req, res);
       if (url.pathname === "/api/stock") return stockRoute(req, res, user);
+      if (url.pathname === "/api/stock/adjust") return adjustStock(req, res, user);
+      if (url.pathname === "/api/overview") return overviewRoute(req, res);
       return history(req, res);
     }
     if (!user) return send(res, 403, { error: "not-pharmacy-staff" });

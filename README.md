@@ -14,7 +14,7 @@
 [![REUSE compliant](https://img.shields.io/badge/REUSE-compliant-18877A.svg)](REUSE.toml)
 ![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E.svg)
 
-[Giới thiệu](#giới-thiệu) · [Kiến trúc](#kiến-trúc) · [Bắt đầu nhanh](#bắt-đầu-nhanh) · [Cấu hình](#cấu-hình) · [Trang và API](#trang-và-api-chính) · [Tài liệu](#tài-liệu) · [Lộ trình](#lộ-trình)
+[Giới thiệu](#giới-thiệu) · [Giao diện](#giao-diện) · [Kiến trúc](#kiến-trúc) · [Bắt đầu nhanh](#bắt-đầu-nhanh) · [Cấu hình](#cấu-hình) · [Trang và API](#trang-và-api-chính) · [Tài liệu](#tài-liệu) · [Lộ trình](#lộ-trình)
 
 </div>
 
@@ -29,7 +29,7 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 - **Việc hằng ngày của nhà thuốc** — quét mã trên đơn, xem kết quả xác minh trong một màn hình, phát thuốc theo lô hoặc từ chối có lý do, quản lý kho và xem lại lịch sử.
 - **Chỉ hỏi phần cần thiết, qua Junctura** — Pharmacy không giữ hồ sơ người bệnh. Đơn thuốc lấy từ bệnh viện, danh sách dị ứng lấy từ trạm y tế, và chỉ khi người bệnh đã đồng ý cho mục đích phát thuốc. Mọi lần hỏi đều để lại dấu vết.
 
-> Đây là sản phẩm demo cho cuộc thi; dữ liệu là **dữ liệu giả lập**, không có thông tin người thật.
+> Dữ liệu là **dữ liệu giả lập**, không có thông tin người thật.
 
 ### Ai dùng và dùng để làm gì
 
@@ -42,21 +42,59 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 ## Tính năng nổi bật
 
 **Xác minh đơn**
-- Quét mã QR trên đơn (máy quét gõ như bàn phím) hoặc nhập tay mã đơn và mã người bệnh.
+- Quét mã QR trên đơn bằng camera của laptop hoặc điện thoại (cần HTTPS hoặc localhost), bằng máy quét gõ như bàn phím, hoặc nhập tay mã đơn và mã người bệnh.
 - Một màn hình cho biết: đơn hợp lệ không, ngày kê, hạn dùng, danh sách thuốc, đã phát chưa, và dị ứng của người bệnh, kèm nguồn và thời điểm nhận dữ liệu.
 - Danh sách dị ứng rỗng luôn là "chưa ghi nhận", không bao giờ là "không dị ứng"; không lấy được thông tin dị ứng thì nhắc dược sĩ hỏi người bệnh trước khi phát.
 - Chưa có đồng thuận thì hiện rõ "người bệnh chưa đồng ý", không hiện như dữ liệu rỗng.
+- **Cảnh báo dị ứng trên từng dòng thuốc**, theo tên và nhóm dị ứng phổ biến (ví dụ dị ứng Penicillin thì cảnh báo Amoxicillin). Phát thuốc trùng dị ứng phải ghi lý do; máy chủ tự tính lại và lưu lý do. Đây là lưới an toàn, không thay đánh giá chuyên môn.
+
+**Hôm nay**
+- Trang tổng quan trong ngày theo giờ Việt Nam: số đơn đã phát, đã từ chối, bị chặn vì chưa đồng thuận và phát dù trùng dị ứng, mỗi số có dòng giải thích.
+- "Cần xử lý": lô đã hết hạn, hết hàng, sắp hết hạn, sắp hết và đơn bị chặn vì chưa đồng thuận, bấm vào là tới đúng trang. Bên cạnh là các đơn phát/từ chối gần nhất; phần nào lỗi chỉ báo phần đó.
 
 **Phát thuốc và kho**
-- Phát từng dòng thuốc với số lượng và số lô; máy chủ **xác minh lại đơn** trước khi ghi, không tin kết quả cũ từ trình duyệt.
+- Phát từng dòng thuốc với số lượng và lô **chọn từ kho** (gợi ý lô hết hạn sớm nhất còn đủ hàng) hoặc nhập tay; hỏi xác nhận trước khi ghi. Máy chủ **xác minh lại đơn** trước khi ghi, không tin kết quả cũ từ trình duyệt.
 - Không cho phát đơn hết hạn, đơn đã phát, thuốc hoặc số lượng không khớp đơn, lô đã hết hạn hoặc không đủ hàng.
 - Từ chối phát luôn kèm lý do.
-- Kho theo lô: tồn kho = số đã nhập trừ số đã phát; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô mới.
+- Kho theo lô: tồn kho = số đã nhập trừ số đã phát và số đã điều chỉnh; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô, xuất hủy, kiểm kê (đều có lý do); xem theo lô hoặc gộp theo thuốc, tìm không dấu, lọc theo trạng thái. Ngưỡng "sắp hết" và "sắp hết hạn" chỉnh trong Cài đặt.
 
 **Lịch sử và nhật ký**
-- Lịch sử các đơn đã phát và đã từ chối, không hiện mã người bệnh.
-- "Nhật ký": mỗi lần nhà thuốc hỏi Junctura — năng lực nào, mục đích, kết quả, đơn nào, dược sĩ nào. Nhật ký không lưu người bệnh, thuốc hay dị ứng.
+- Lịch sử các đơn đã phát và đã từ chối, lọc theo kết quả, tìm theo mã đơn hoặc tên thuốc, không hiện mã người bệnh; mở từng lần để xem và **in phiếu phát thuốc**.
+- "Nhật ký Junctura": mỗi lần xác minh đơn là một dòng — đã hỏi dữ liệu gì (đơn thuốc, dị ứng), kết quả từng phần, đơn nào, dược sĩ nào. Không lưu người bệnh, thuốc hay dị ứng.
+- "Nhật ký thao tác": ai xác minh, phát, từ chối, nhập kho, điều chỉnh kho, đổi cài đặt, lúc nào.
+
+**Báo cáo và tiện ích**
+- Báo cáo bằng biểu đồ theo khoảng ngày (chọn nhanh 7/30/90 ngày, tối đa 92 ngày): cột phát và từ chối theo ngày, thuốc phát nhiều nhất, lý do từ chối, tỷ lệ từ chối, phát dù trùng dị ứng, bị chặn vì chưa đồng thuận. Mỗi biểu đồ có dạng bảng đi kèm; tải CSV mở đúng tiếng Việt trong Excel. Chỉ có số đếm, không có người bệnh.
+- Tìm nhanh từ mọi màn (`/` hoặc Ctrl+K): trang, mã đơn, thuốc, số lô. Mã đơn hiện gọn (6 số cuối), nút sao chép vẫn chép mã đầy đủ.
 - Giao diện dựng trên [`@junctura/health-ui`](https://www.npmjs.com/package/@junctura/health-ui): sáng/tối, cỡ chữ, dùng được trên điện thoại.
+
+## Giao diện
+
+Ảnh chụp với dữ liệu giả lập (`npm run seed:activity`).
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/01-verify.png" alt="Xác minh đơn"><br><sub><b>Xác minh đơn</b>: đơn, dị ứng và cảnh báo thuốc trùng dị ứng trong một màn hình, kèm nguồn dữ liệu</sub></td>
+    <td width="50%"><img src="docs/screenshots/02-today.png" alt="Hôm nay"><br><sub><b>Hôm nay</b>: số liệu trong ngày, việc cần xử lý, đơn gần đây</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/03-reports.png" alt="Báo cáo"><br><sub><b>Báo cáo</b>: biểu đồ theo ngày, thuốc phát nhiều nhất, lý do từ chối, tải CSV</sub></td>
+    <td width="50%"><img src="docs/screenshots/04-stock.png" alt="Kho"><br><sub><b>Kho</b>: tồn theo lô, cảnh báo sắp hết và sắp hết hạn, xuất hủy, kiểm kê</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/05-history.png" alt="Lịch sử"><br><sub><b>Lịch sử</b>: lọc theo kết quả, tìm theo mã đơn hoặc tên thuốc</sub></td>
+    <td width="50%"><img src="docs/screenshots/06-junctura-log.png" alt="Nhật ký Junctura"><br><sub><b>Nhật ký Junctura</b>: mỗi lần xác minh đã hỏi dữ liệu gì và kết quả</sub></td>
+  </tr>
+</table>
+
+**Phiếu phát thuốc và trên điện thoại.** Mỗi lần phát có phiếu in được, ghi rõ lý do nếu phát dù trùng dị ứng; dược sĩ có thể quét mã QR bằng camera điện thoại.
+
+<table>
+  <tr>
+    <td width="75%"><img src="docs/screenshots/07-slip.png" alt="Phiếu phát thuốc"></td>
+    <td width="25%"><img src="docs/screenshots/08-verify-phone.png" alt="Xác minh đơn trên điện thoại"></td>
+  </tr>
+</table>
 
 ## Kiến trúc
 
@@ -147,10 +185,11 @@ npm ci                # cài thư viện máy chủ từ lockfile
 npm run web:install   # cài thư viện giao diện từ lockfile
 npm run build         # build giao diện vào web/dist
 npm run seed:stock    # (tùy chọn) nạp kho thuốc mẫu
+npm run seed:activity # (tùy chọn) nạp 30 ngày hoạt động giả lập
 npm start             # chạy máy chủ
 ```
 
-Mở <http://localhost:5184> và đăng nhập bằng `duocsi.nhathuoc`. Mật khẩu demo nằm trong `.junctura/demo/accounts.env` của junctura-health.
+Mở <http://localhost:5184> và đăng nhập bằng `duocsi.nhathuoc`. Mật khẩu nằm trong `.junctura/demo/accounts.env` của junctura-health.
 
 **Chạy bằng Docker.** Ảnh dựng từ [`Dockerfile`](Dockerfile) (build nhiều giai đoạn, chạy bằng người dùng không phải root). Thông tin kết nối truyền bằng `--env-file`, junctura-health gắn ở chế độ chỉ đọc:
 
@@ -166,6 +205,20 @@ Nếu `JUNCTURA_URL` trỏ tới Junctura chạy trên máy chủ, thêm `--add-
 
 **Phát triển giao diện.** Chạy `npm run dev:server` (API, cổng 5194) và `npm run dev` (giao diện, cổng 5184, tự chuyển `/api` sang 5194).
 
+**Thử trọn luồng khi Hospital, Clinic, MyHealth chưa chạy (chỉ khi phát triển).** Hai công cụ trong `scripts/` thay tạm cho các ứng dụng đó; chúng không thuộc Pharmacy và bỏ đi khi ứng dụng thật có:
+
+```sh
+# Provider tạm đóng vai Hospital (prescription-verify) và Clinic (allergy-list) từ dữ liệu mẫu
+# của junctura-health (chỉ đọc), qua đúng cơ chế đổi vé của Junctura.
+# Cần junctura-dxos đã bật C4A, có mạng providers và chứng chỉ (npm run provider:pki -- clinic hospital).
+DEV_PROVIDER_UID=$(id -u) npm run dev:providers
+
+# Đồng thuận mẫu của một người bệnh cho Nhà thuốc (như MyHealth sẽ làm); --revoke để thu hồi.
+npm run dev:consent -- benhnhan.an
+```
+
+Provider tạm thêm một đơn kịch bản `DT-2026-004537` (Amoxicillin cho Nguyễn Văn An, dị ứng Penicillin) để thử cảnh báo dị ứng.
+
 ### Lệnh thường dùng
 
 | Lệnh | Tác dụng |
@@ -174,6 +227,8 @@ Nếu `JUNCTURA_URL` trỏ tới Junctura chạy trên máy chủ, thêm `--add-
 | `npm run build` | Build giao diện vào `web/dist` |
 | `npm run dev:server` · `npm run dev` | Chạy API và giao diện ở chế độ phát triển |
 | `npm run seed:stock` | Nạp kho mẫu từ danh mục thuốc dùng chung; chạy lại không nhân đôi |
+| `npm run seed:activity` | Nạp khoảng 30 ngày hoạt động giả lập (phát, từ chối, gọi Junctura, nhật ký) để các trang Hôm nay, Báo cáo, Lịch sử, Nhật ký có số liệu; chỉ nạp một lần |
+| `npm run dev:providers` · `npm run dev:consent` | Provider tạm và đồng thuận mẫu để thử trọn luồng khi phát triển |
 | `npm run check` | Kiểm tra header SPDX, giấy phép và thư viện |
 | `npm run check:reuse` | Kiểm tra tuân thủ REUSE 3.3 (cần `pip install -r requirements-reuse.txt`, hoặc `docker run --rm -v "$PWD":/data fsfe/reuse:6.2.0 lint`) |
 | `npm test` · `npm run web:test` | Kiểm thử máy chủ · kiểm thử giao diện |
@@ -196,20 +251,29 @@ Máy chủ đọc kết nối từ `.junctura/demo/junctura-pharmacy.env` do `de
 | Trang | Địa chỉ |
 | --- | --- |
 | Xác minh đơn (kèm phát thuốc và từ chối) | `/` |
-| Lịch sử | `/lich-su` |
+| Hôm nay | `/hom-nay` |
+| Lịch sử · Phiếu phát thuốc | `/lich-su` · `/lich-su/<id>` |
 | Kho | `/kho` |
-| Nhật ký | `/nhat-ky` |
+| Báo cáo | `/bao-cao` |
+| Nhật ký Junctura | `/nhat-ky` |
+| Nhật ký thao tác | `/nhat-ky-thao-tac` |
+| Cài đặt | `/cai-dat` |
 
 Mọi API dưới đây cần đăng nhập bằng tài khoản dược sĩ, trừ `/api/config` và `/healthz`.
 
 | Endpoint | Mô tả |
 | --- | --- |
 | `POST /api/verify` | Xác minh đơn (`{ qr }` hoặc `{ prescriptionCode, patient }`): đơn, dị ứng, có phát được không và lý do |
-| `POST /api/dispense` | Phát thuốc theo lô; máy chủ xác minh lại đơn trước khi ghi |
+| `POST /api/dispense` | Phát thuốc theo lô; máy chủ xác minh lại đơn, chặn lô hết hạn hoặc thiếu hàng, bắt buộc `allergyOverride` khi thuốc trùng dị ứng |
 | `POST /api/refuse` | Từ chối phát, kèm lý do 3–200 ký tự |
-| `GET /api/history` | Lịch sử phát và từ chối |
+| `GET /api/history` · `GET /api/history/<id>` | Lịch sử phát và từ chối · một lần phát (cho phiếu in) |
 | `GET /api/stock` · `POST /api/stock` | Tồn kho theo lô · nhập lô mới |
+| `POST /api/stock/adjust` | Xuất hủy (`kind: "dispose"`) hoặc kiểm kê (`kind: "count"`), kèm lý do |
+| `GET /api/report` · `GET /api/report.csv` | Báo cáo theo khoảng ngày (`from`, `to`) · bản CSV |
+| `GET /api/audit` | Nhật ký thao tác của nhân viên |
+| `GET /api/settings` · `PUT /api/settings` | Ngưỡng sắp hết (`lowStock`) và sắp hết hạn (`expiringDays`) |
 | `GET /api/call-log` | Nhật ký các lần gọi Junctura |
+| `GET /api/overview` | Tổng quan trong ngày (giờ Việt Nam), kho cần chú ý và đơn gần đây |
 | `GET /api/me` · `GET /api/config` · `GET /healthz` | Người đang đăng nhập · cấu hình công khai · kiểm tra sống |
 
 ## Công nghệ
@@ -219,6 +283,7 @@ Mọi API dưới đây cần đăng nhập bằng tài khoản dược sĩ, tr�
 | Máy chủ | Node.js 24, không framework; [`@junctura/server-client`](https://www.npmjs.com/package/@junctura/server-client), [`@junctura/health-contracts`](https://www.npmjs.com/package/@junctura/health-contracts) |
 | Lưu trữ | Kho bản ghi của Junctura (lịch sử, kho, nhật ký); không có cơ sở dữ liệu riêng |
 | Giao diện | React 19, Vite, TypeScript, Tailwind CSS, [`@junctura/health-ui`](https://www.npmjs.com/package/@junctura/health-ui), `lucide-react` |
+| Quét mã QR | `BarcodeDetector` khi trình duyệt hỗ trợ, [`jsqr`](https://www.npmjs.com/package/jsqr) làm dự phòng và vẽ khung hình lên canvas |
 | Đóng gói, CI | npm, Docker, GitHub Actions |
 
 Thư viện bên thứ ba được khai trong `package.json` và `package-lock.json` (gốc và `web/`), cài từ registry; không chép mã nguồn của chúng vào repo.
@@ -229,6 +294,9 @@ Thư viện bên thứ ba được khai trong `package.json` và `package-lock.j
 | --- | --- |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Quy trình đóng góp, quy tắc bắt buộc |
 | [CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi |
+| [SECURITY.md](SECURITY.md) | Cách báo lỗ hổng bảo mật |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Quy tắc ứng xử |
+| [THIRD-PARTY.md](THIRD-PARTY.md) | Thư viện bên thứ ba, phiên bản và giấy phép |
 | [`.env.example`](.env.example) | Mẫu biến môi trường |
 | [Tính năng từng ứng dụng](https://github.com/vku2-open-source-2026/junctura-health/blob/main/docs/APPS.md) | Phạm vi Pharmacy trong Junctura Health |
 | [Hợp đồng năng lực](https://github.com/vku2-open-source-2026/junctura-health/tree/main/contracts) | Dữ liệu vào, ra, mục đích được phép |
@@ -243,6 +311,7 @@ web/            giao diện React (web/src)
 tests/          kiểm thử máy chủ
 scripts/        kiểm tra SPDX và REUSE, nạp kho mẫu
 docs/assets/    logo
+docs/screenshots/ ảnh chụp giao diện cho README
 Dockerfile      ảnh container (build nhiều giai đoạn)
 ```
 
@@ -264,16 +333,19 @@ GitHub Actions chạy cả bốn lệnh và build giao diện ở mỗi Pull Req
 - [x] Xác minh đơn bằng QR hoặc nhập tay, cảnh báo dị ứng.
 - [x] Phát thuốc theo lô, từ chối có lý do, lịch sử.
 - [x] Kho theo lô và nhật ký các lần gọi Junctura.
+- [x] Cảnh báo dị ứng theo nhóm thuốc, quét QR bằng camera, trang Hôm nay.
+- [x] Chọn lô từ kho, xác nhận trước khi phát, phiếu phát in được, nhật ký thao tác.
+- [x] Xuất hủy và kiểm kê kho, báo cáo CSV, cài đặt ngưỡng, tìm nhanh.
 - [x] Đóng gói Docker.
 - [ ] Chạy cùng bộ năm ứng dụng bằng một lệnh `docker compose` của junctura-health.
 - [ ] Đọc mã QR bằng bộ đọc dùng chung trong `@junctura/health-contracts`.
 - [ ] Bản phát hành `v0.1.0` kèm gói `.tar.gz`.
 
-Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh viện chưa được báo lại; kho bản ghi của Junctura chỉ liệt kê 100 bản ghi mới nhất mỗi loại, nên lịch sử, kho và nhật ký chỉ tính trong phạm vi đó; chưa quét mã bằng camera. Tiến độ chi tiết ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
+Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh viện chưa được báo lại; API liệt kê của kho bản ghi Junctura chỉ trả 100 bản ghi **đầu tiên** (cũ nhất) mỗi loại và chưa có phân trang, nên khi một loại vượt 100 bản ghi, bản ghi mới sẽ không hiện trong lịch sử, kho và nhật ký (đã báo nhóm Tầng 1); quét mã bằng camera chỉ dùng được trên HTTPS hoặc localhost. Tiến độ chi tiết ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
 
 ## Đóng góp
 
-Mọi đóng góp đều được hoan nghênh. Báo lỗi và đề xuất tại [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues). Trước khi gửi Pull Request, đọc [CONTRIBUTING.md](CONTRIBUTING.md). Commit theo chuẩn Conventional Commits và không bao giờ commit tệp `.env` hay khóa bí mật. Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
+Mọi đóng góp đều được hoan nghênh. Báo lỗi và đề xuất tại [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues); lỗ hổng bảo mật báo theo [SECURITY.md](SECURITY.md). Trước khi gửi Pull Request, đọc [CONTRIBUTING.md](CONTRIBUTING.md) và [Quy tắc ứng xử](CODE_OF_CONDUCT.md). Commit theo chuẩn Conventional Commits và không bao giờ commit tệp `.env` hay khóa bí mật. Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
 
 ## Giấy phép
 
@@ -283,4 +355,4 @@ Junctura Pharmacy là phần mềm tự do, phát hành theo [Apache License 2.0
 - Mỗi tệp mã nguồn đều ghi giấy phép bằng tiêu đề [SPDX](https://spdx.dev/) (`SPDX-License-Identifier: Apache-2.0`); các tệp không chứa được chú thích (JSON, dữ liệu) được khai báo trong [REUSE.toml](REUSE.toml). Dự án tuân thủ chuẩn [REUSE 3.3](https://reuse.software/), kiểm tra bằng `reuse lint`.
 <!-- REUSE-IgnoreEnd -->
 - Toàn văn giấy phép: [LICENSE](LICENSE) · thông báo bản quyền: [NOTICE](NOTICE).
-- Thành phần bên thứ ba giữ giấy phép riêng và đều là giấy phép nguồn mở; chúng được khai trong `package.json`, cài từ registry, không chép hay sửa mã nguồn.
+- Thành phần bên thứ ba giữ giấy phép riêng và đều là giấy phép nguồn mở; chúng được khai trong `package.json`, cài từ registry, không chép hay sửa mã nguồn. Danh sách, phiên bản và giấy phép tại [THIRD-PARTY.md](THIRD-PARTY.md).

@@ -7,6 +7,8 @@ import { loadConfig } from "./config.mjs";
 import { loadPharmacyData } from "./data.mjs";
 import { createDispensingStore } from "./dispensing.mjs";
 import { createCallLog } from "./call-log.mjs";
+import { createSettings } from "./settings.mjs";
+import { createStaffLog } from "./staff-log.mjs";
 import { createStock } from "./stock.mjs";
 import { createVerifier } from "./jwt.mjs";
 import { createCapabilityCaller } from "./junctura.mjs";
@@ -30,6 +32,8 @@ let capabilities = null;
 let dispensing = null;
 let callLog = null;
 let stock = null;
+let staffLog = null;
+let settings = null;
 if (config.junctura) {
   const client = createJuncturaClient({
     baseUrl: config.junctura.url,
@@ -39,12 +43,14 @@ if (config.junctura) {
   capabilities = createCapabilityCaller({ client });
   dispensing = createDispensingStore({ client });
   callLog = createCallLog({ client });
-  stock = createStock({ client, dispensing });
+  settings = createSettings({ client });
+  stock = createStock({ client, dispensing, settings });
+  staffLog = createStaffLog({ client });
 } else {
   console.warn("Junctura capability calls are disabled: JUNCTURA_URL, JUNCTURA_APP_CLIENT_ID and JUNCTURA_APP_CLIENT_SECRET are not all set.");
 }
 
-const server = createServer(createApp({ config, data, verifier, capabilities, dispensing, callLog, stock }));
+const server = createServer(createApp({ config, data, verifier, capabilities, dispensing, callLog, stock, staffLog, settings }));
 server.listen(config.port, config.host, () => {
   console.log(`Junctura Pharmacy (${data.facility}) listening on http://${config.host}:${server.address().port}`);
 });

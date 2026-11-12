@@ -71,7 +71,7 @@ async function request(app, { token, body, method = "POST", path, contentType = 
   return { status: response.status, body: parsed };
 }
 
-const safeKeys = ["at", "capability", "outcome", "pharmacist", "prescriptionCode", "purpose"];
+const safeKeys = ["at", "capability", "outcome", "pharmacist", "pharmacistName", "prescriptionCode", "purpose"];
 
 test("the call log lists entries newest first and stores no patient, item or allergy data", async () => {
   const client = fakeClient();
@@ -83,6 +83,7 @@ test("the call log lists entries newest first and stores no patient, item or all
     outcome: "ok",
     prescriptionCode: CODE,
     pharmacist: "duocsi.nhathuoc",
+    pharmacistName: "DS. Võ Thu Trang",
     at: "2026-11-01T08:00:00.000Z",
     patient: PATIENT,
     items: rxOutput.items,
@@ -94,6 +95,7 @@ test("the call log lists entries newest first and stores no patient, item or all
     outcome: "no-consent",
     prescriptionCode: CODE,
     pharmacist: "duocsi.nhathuoc",
+    pharmacistName: "DS. Võ Thu Trang",
     at: "2026-11-01T10:00:00.000Z",
   });
 
@@ -117,6 +119,15 @@ test("the call log turns read and write failures into a 503 error", async () => 
     writeStore.add({ capability: "allergy-list", at: "2026-11-01T08:00:00.000Z" }),
     error => error.status === 503 && error.code === "store-unavailable",
   );
+});
+
+test("older call-log entries without a pharmacist name are still listed", async () => {
+  const store = createCallLog({ client: fakeClient() });
+  await store.add({ capability: "allergy-list", purpose: "dispensing", outcome: "ok", prescriptionCode: CODE, pharmacist: "duocsi.nhathuoc", at: "2026-11-01T08:00:00.000Z" });
+
+  const [entry] = await store.list();
+  assert.equal(entry.pharmacist, "duocsi.nhathuoc");
+  assert.equal(entry.pharmacistName, undefined);
 });
 
 test("GET /api/call-log returns the calls without patient data", async () => {
@@ -153,6 +164,7 @@ test("POST /api/verify records one call-log entry per capability", async () => {
       assert.equal(entry.outcome, "ok");
       assert.equal(entry.prescriptionCode, CODE);
       assert.equal(entry.pharmacist, "duocsi.nhathuoc");
+      assert.equal(entry.pharmacistName, "DS. Võ Thu Trang");
       assert.ok(Number.isFinite(Date.parse(entry.at)));
     }
     assert.equal(JSON.stringify(entries).includes(PATIENT), false);

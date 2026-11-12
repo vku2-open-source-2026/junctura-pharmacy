@@ -17,6 +17,7 @@ export function createCallLog({ client }) {
         outcome: entry.outcome,
         prescriptionCode: entry.prescriptionCode,
         pharmacist: entry.pharmacist,
+        pharmacistName: entry.pharmacistName,
         at: entry.at,
       };
       try {
@@ -31,8 +32,8 @@ export function createCallLog({ client }) {
       try {
         return (await listRecords(client, COLLECTION))
           .filter(entry => typeof entry.capability === "string")
-          .map(({ capability, purpose, outcome, prescriptionCode, pharmacist, at }) => ({
-            capability, purpose, outcome, prescriptionCode, pharmacist, at,
+          .map(({ capability, purpose, outcome, prescriptionCode, pharmacist, pharmacistName, at }) => ({
+            capability, purpose, outcome, prescriptionCode, pharmacist, pharmacistName, at,
           }))
           .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
       } catch {
