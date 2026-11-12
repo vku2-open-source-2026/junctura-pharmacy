@@ -147,6 +147,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       outcome,
       prescriptionCode: result.prescriptionCode,
       pharmacist: user.username,
+      pharmacistName: user.displayName,
       at,
     }).catch(error => console.error(error?.code ?? "call-log-unavailable"))));
   }
@@ -253,6 +254,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
         items,
         ...(conflicts.length && { allergyOverride: override }),
         pharmacist: user.username,
+        pharmacistName: user.displayName,
         at: new Date().toISOString(),
       };
       const saved = await dispensing.add(entry);
@@ -286,6 +288,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
         outcome: "refused",
         reason,
         pharmacist: user.username,
+        pharmacistName: user.displayName,
         at: new Date().toISOString(),
       };
       const saved = await dispensing.add(entry);
@@ -297,10 +300,15 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     }
   }
 
+  // Older records only kept the username; fill in the staff display name.
+  const named = entry => entry.pharmacistName || !entry.pharmacist
+    ? entry
+    : { ...entry, pharmacistName: data.staff.get(entry.pharmacist)?.displayName ?? entry.pharmacist };
+
   async function history(req, res) {
     if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
     try {
-      const items = (await dispensing.list()).map(({ patient, ...entry }) => entry);
+      const items = (await dispensing.list()).map(({ patient, ...entry }) => named(entry));
       return send(res, 200, { items });
     } catch (error) {
       return storeFailure(res, error);
@@ -313,7 +321,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       const entry = await dispensing.get(id);
       if (!entry) return send(res, 404, { error: "not-found" });
       const { patient: omitted, ...visible } = entry;
-      return send(res, 200, visible);
+      return send(res, 200, named(visible));
     } catch (error) {
       return storeFailure(res, error);
     }
@@ -369,7 +377,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
   async function callLogRoute(req, res) {
     if (!callLog) return send(res, 503, { error: "junctura-not-configured" });
     try {
-      return send(res, 200, { items: await callLog.list() });
+      return send(res, 200, { items: (await callLog.list()).map(named) });
     } catch (error) {
       return storeFailure(res, error);
     }

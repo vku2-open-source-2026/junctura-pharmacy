@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import {
-  AlertBanner, AllergyStatus, Badge, Button, Card, ConfirmDialog, DataTable, Dialog, ErrorState, IdChip, PageHeader,
+  AlertBanner, AllergyStatus, Badge, Button, Card, ConfirmDialog, DataTable, Dialog, ErrorState, PageHeader,
   PermissionState, SelectField, SourceBadge, TextAreaField, TextField, formatDate, formatDateTime, type Column,
 } from "@junctura/health-ui";
 import { ScanLine } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { ApiError, dispense, getStock, refuse, verifyPrescription } from "./api";
+import { ShortCode } from "./code";
 import { QrScanner } from "./QrScanner";
 import { useSession } from "./session";
 import type {
@@ -94,7 +95,7 @@ const columnsFor = (conflicts: AllergyConflict[]): Column<PrescriptionItem>[] =>
       return (
         <span className="flex flex-wrap items-center gap-2">
           {item.name}
-          {allergens.length > 0 && <Badge tone="danger">Trùng dị ứng: {allergens.join(", ")}</Badge>}
+          {allergens.length > 0 && <Badge className="whitespace-nowrap" tone="danger">Trùng dị ứng: {allergens.join(", ")}</Badge>}
         </span>
       );
     },
@@ -337,11 +338,11 @@ export function Verify() {
             {output ? (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <IdChip value={result.prescriptionCode} />
-                  <Badge tone={output.valid && !result.blockers.some(blocker => blocker === "invalid" || blocker === "expired") ? "ok" : "danger"}>
+                  <ShortCode value={result.prescriptionCode} full />
+                  <Badge className="whitespace-nowrap" tone={output.valid && !result.blockers.some(blocker => blocker === "invalid" || blocker === "expired") ? "ok" : "danger"}>
                     {output.valid && !result.blockers.some(blocker => blocker === "invalid" || blocker === "expired") ? "Đơn hợp lệ" : "Đơn không hợp lệ"}
                   </Badge>
-                  <Badge tone={output.dispensed ? "warn" : "neutral"}>{output.dispensed ? "Đã phát" : "Chưa phát"}</Badge>
+                  <Badge className="whitespace-nowrap" tone={output.dispensed ? "warn" : "neutral"}>{output.dispensed ? "Đã phát" : "Chưa phát"}</Badge>
                 </div>
                 <dl className="grid gap-3 text-sm sm:grid-cols-3">
                   <div>

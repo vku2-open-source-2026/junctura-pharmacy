@@ -81,6 +81,7 @@ export interface DispenseResult {
   outcome: "dispensed";
   items: DispensedItem[];
   pharmacist: string;
+  pharmacistName?: string;
   at: string;
 }
 
@@ -91,6 +92,7 @@ export interface RefuseResult {
   outcome: "refused";
   reason: string;
   pharmacist: string;
+  pharmacistName?: string;
   at: string;
 }
 
@@ -102,6 +104,7 @@ export interface HistoryItem {
   items?: DispensedItem[];
   allergyOverride?: string;
   pharmacist: string;
+  pharmacistName?: string;
   at: string;
 }
 
@@ -130,6 +133,7 @@ export interface CallLogItem {
   outcome: CapabilityStatus;
   prescriptionCode?: string;
   pharmacist: string;
+  pharmacistName?: string;
   at: string;
 }
 

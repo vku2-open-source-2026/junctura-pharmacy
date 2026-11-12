@@ -1,26 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import {
-  AlertBanner, Button, Card, DataTable, EmptyState, ErrorState, PageHeader, Skeleton, StatCard, TextField,
-  formatDate, formatNumber, type Column,
+  AlertBanner, Button, DataTable, EmptyState, ErrorState, PageHeader, Section, Skeleton, StatStrip, TextField,
+  formatNumber, type Column,
 } from "@junctura/health-ui";
 import { Download } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, downloadReportCsv, getReport } from "./api";
+import { DailyBars, HorizontalBars, type HorizontalBarItem } from "./charts";
 import { useSession } from "./session";
-import type { ReportDay, ReportMedicine, ReportRefusalReason, ReportResult } from "./types";
+import type { ReportMedicine, ReportRefusalReason, ReportResult } from "./types";
 
 const INVALID_RANGE = "Khoảng ngày không hợp lệ (tối đa 92 ngày)";
-
-const DAY_COLUMNS: Column<ReportDay>[] = [
-  {
-    key: "date",
-    header: "Ngày",
-    render: row => <time dateTime={row.date}>{formatDate(row.date)}</time>,
-  },
-  { key: "dispensed", header: "Đã phát", align: "right", render: row => formatNumber(row.dispensed) },
-  { key: "refused", header: "Đã từ chối", align: "right", render: row => formatNumber(row.refused) },
-];
 
 const MEDICINE_COLUMNS: Column<ReportMedicine>[] = [
   { key: "name", header: "Tên thuốc", render: row => row.name },
@@ -41,6 +32,31 @@ type State =
   | { kind: "error"; forbidden: boolean };
 
 type Range = { from?: string; to?: string };
+
+function todayInVietnam(): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: "year" | "month" | "day") =>
+    Number(parts.find(item => item.type === type)?.value ?? 0);
+  return new Date(Date.UTC(part("year"), part("month") - 1, part("day")));
+}
+
+function formatUtcDate(date: Date): string {
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${month}-${day}`;
+}
+
+function quickRange(days: number): { from: string; to: string } {
+  const end = todayInVietnam();
+  const start = new Date(end.getTime());
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+  return { from: formatUtcDate(start), to: formatUtcDate(end) };
+}
 
 export function Reports() {
   const { settings, expire } = useSession();
@@ -76,10 +92,24 @@ export function Reports() {
     return () => { cancelled = true; };
   }, [settings, range, attempt, expire]);
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
+  const changeFrom = (value: string) => {
+    setFrom(value);
     setDownloadError(null);
-    setRange({ from: from || undefined, to: to || undefined });
+    setRange({ from: value || undefined, to: to || undefined });
+  };
+
+  const changeTo = (value: string) => {
+    setTo(value);
+    setDownloadError(null);
+    setRange({ from: from || undefined, to: value || undefined });
+  };
+
+  const applyQuickRange = (days: number) => {
+    const next = quickRange(days);
+    setFrom(next.from);
+    setTo(next.to);
+    setDownloadError(null);
+    setRange(next);
   };
 
   const download = async () => {
@@ -125,13 +155,13 @@ export function Reports() {
         )}
       />
 
-      <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={submit}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
           <TextField
             label="Từ ngày"
             type="date"
             value={from}
-            onChange={event => setFrom(event.target.value)}
+            onChange={event => changeFrom(event.target.value)}
           />
         </div>
         <div className="flex-1">
@@ -139,11 +169,17 @@ export function Reports() {
             label="Đến ngày"
             type="date"
             value={to}
-            onChange={event => setTo(event.target.value)}
+            onChange={event => changeTo(event.target.value)}
           />
         </div>
-        <Button type="submit">Xem</Button>
-      </form>
+        <div role="group" aria-label="Chọn nhanh khoảng ngày" className="flex flex-wrap gap-2">
+          {[7, 30, 90].map(days => (
+            <Button key={days} type="button" variant="secondary" onClick={() => applyQuickRange(days)}>
+              {days} ngày
+            </Button>
+          ))}
+        </div>
+      </div>
 
       {downloadError && <p role="alert" className="text-sm font-medium text-danger">{downloadError}</p>}
 
@@ -151,7 +187,7 @@ export function Reports() {
 
       {state.kind === "invalid" && (
         <AlertBanner level="critical" title={INVALID_RANGE}>
-          Chọn khoảng ngày ngắn hơn rồi bấm Xem.
+          Chọn khoảng ngày ngắn hơn rồi thử lại.
         </AlertBanner>
       )}
 
@@ -165,57 +201,91 @@ export function Reports() {
 
       {state.kind === "ready" && (() => {
         const report = state.data;
-        const days = report.perDay.filter(row => row.dispensed !== 0 || row.refused !== 0);
+        const hasActivity = report.perDay.some(day => day.dispensed !== 0 || day.refused !== 0);
+        const medicines = [...report.medicines].sort((a, b) => b.quantity - a.quantity);
+        const reasons = [...report.refusalReasons].sort((a, b) => b.count - a.count);
+        const medicineBars: HorizontalBarItem[] = medicines.map(medicine => ({
+          key: `${medicine.name}-${medicine.strength}`,
+          label: medicine.strength ? `${medicine.name} · ${medicine.strength}` : medicine.name,
+          value: medicine.quantity,
+          note: `${formatNumber(medicine.prescriptions)} đơn`,
+        }));
+        const reasonBars: HorizontalBarItem[] = reasons.map(reason => ({
+          key: reason.reason,
+          label: reason.reason,
+          value: reason.count,
+        }));
+
         return (
-          <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <StatCard label="Đã phát" value={formatNumber(report.totals.dispensed)} />
-              <StatCard label="Đã từ chối" value={formatNumber(report.totals.refused)} />
-              <StatCard label="Tỷ lệ từ chối (%)" value={`${formatNumber(report.totals.refusalRate)}%`} />
-              <StatCard label="Phát dù trùng dị ứng" value={formatNumber(report.totals.allergyOverrides)} />
-              <StatCard label="Bị chặn vì chưa đồng thuận" value={formatNumber(report.totals.noConsent)} />
-            </div>
+          <div className="space-y-6">
+            <StatStrip items={[
+              { label: "Đã phát", value: formatNumber(report.totals.dispensed), hint: "số đơn", tone: "ok" },
+              {
+                label: "Đã từ chối",
+                value: formatNumber(report.totals.refused),
+                hint: `tỷ lệ ${formatNumber(report.totals.refusalRate)}%`,
+                tone: "warn",
+              },
+              {
+                label: "Phát dù trùng dị ứng",
+                value: formatNumber(report.totals.allergyOverrides),
+                hint: "đã ghi lý do",
+                tone: "warn",
+              },
+              {
+                label: "Bị chặn vì chưa đồng thuận",
+                value: formatNumber(report.totals.noConsent),
+                hint: "người bệnh chưa cho phép",
+                tone: "danger",
+              },
+            ]} />
 
-            <Card title="Theo ngày">
-              {days.length === 0
-                ? <EmptyState title="Không có đơn nào trong khoảng ngày này" />
-                : (
-                  <DataTable
-                    caption="Số đơn đã phát và từ chối theo ngày"
-                    columns={DAY_COLUMNS}
-                    rows={days}
-                    rowKey={row => row.date}
-                  />
-                )}
-              <p className="mt-3 text-xs text-muted">Các ngày không có đơn được ẩn</p>
-            </Card>
+            <Section title="Theo ngày" description="Mỗi cột là một ngày trong khoảng đã chọn.">
+              {hasActivity
+                ? <DailyBars days={report.perDay} />
+                : <EmptyState title="Không có đơn nào trong khoảng ngày này" />}
+            </Section>
 
-            <div className="grid gap-5 lg:grid-cols-2">
-              <Card title="Thuốc đã phát">
-                {report.medicines.length === 0 ? (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Section title="Thuốc phát nhiều nhất">
+                {medicines.length === 0 ? (
                   <EmptyState title="Chưa phát thuốc nào trong khoảng này" />
                 ) : (
-                  <DataTable
-                    caption="Thuốc đã phát theo tên và hàm lượng"
-                    columns={MEDICINE_COLUMNS}
-                    rows={report.medicines}
-                    rowKey={row => `${row.name}-${row.strength}`}
+                  <HorizontalBars
+                    items={medicineBars}
+                    ariaLabel="Thuốc phát nhiều nhất theo số lượng"
+                    tone="ok"
+                    table={(
+                      <DataTable
+                        caption="Thuốc đã phát theo tên và hàm lượng"
+                        columns={MEDICINE_COLUMNS}
+                        rows={medicines}
+                        rowKey={row => `${row.name}-${row.strength}`}
+                      />
+                    )}
                   />
                 )}
-              </Card>
+              </Section>
 
-              <Card title="Lý do từ chối">
-                {report.refusalReasons.length === 0 ? (
+              <Section title="Lý do từ chối">
+                {reasons.length === 0 ? (
                   <EmptyState title="Chưa có đơn nào bị từ chối" />
                 ) : (
-                  <DataTable
-                    caption="Số lần theo lý do từ chối"
-                    columns={REASON_COLUMNS}
-                    rows={report.refusalReasons}
-                    rowKey={row => row.reason}
+                  <HorizontalBars
+                    items={reasonBars}
+                    ariaLabel="Số lần từ chối theo lý do"
+                    tone="warn"
+                    table={(
+                      <DataTable
+                        caption="Số lần theo lý do từ chối"
+                        columns={REASON_COLUMNS}
+                        rows={reasons}
+                        rowKey={row => row.reason}
+                      />
+                    )}
                   />
                 )}
-              </Card>
+              </Section>
             </div>
 
             <p className="text-xs text-muted">Báo cáo chỉ có số đếm, không có thông tin người bệnh.</p>

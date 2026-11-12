@@ -34,7 +34,7 @@ const COLUMNS: Column<AuditItem>[] = [
   {
     key: "action",
     header: "Thao tác",
-    render: item => <Badge tone={ACTION[item.action]?.tone ?? "neutral"}>{ACTION[item.action]?.label ?? item.action}</Badge>,
+    render: item => <Badge className="whitespace-nowrap" tone={ACTION[item.action]?.tone ?? "neutral"}>{ACTION[item.action]?.label ?? item.action}</Badge>,
   },
   { key: "prescriptionCode", header: "Mã đơn", render: item => item.prescriptionCode ? <IdChip value={item.prescriptionCode} /> : "—" },
   { key: "detail", header: "Chi tiết", render: item => item.detail || "—" },

@@ -128,12 +128,14 @@ test("POST /api/dispense records a dispensed entry without leaking the patient",
     assert.equal(response.body.prescriptionCode, CODE);
     assert.equal(response.body.outcome, "dispensed");
     assert.equal(response.body.pharmacist, "duocsi.nhathuoc");
+    assert.equal(response.body.pharmacistName, "DS. Võ Thu Trang");
     assert.ok(Number.isFinite(Date.parse(response.body.at)));
     assert.equal("patient" in response.body, false);
     assert.deepEqual(response.body.items, [{ name: "Clopidogrel", strength: "75 mg", quantity: 5, lot: "LOT-2026" }]);
 
     assert.equal(client.records.length, 1);
     assert.equal(client.records[0].data.patient, PATIENT);
+    assert.equal(client.records[0].data.pharmacistName, "DS. Võ Thu Trang");
     assert.deepEqual(capabilities.calls.map(call => call.slug).sort(), ["allergy-list", "prescription-verify"]);
   } finally { await app.close(); }
 });
@@ -213,9 +215,35 @@ test("POST /api/refuse validates the trimmed reason and records a refusal", asyn
     assert.equal(response.body.outcome, "refused");
     assert.equal(response.body.reason, "Thuốc đã hết hạn");
     assert.equal(response.body.pharmacist, "duocsi.nhathuoc");
+    assert.equal(response.body.pharmacistName, "DS. Võ Thu Trang");
     assert.equal("patient" in response.body, false);
     assert.equal(client.records[0].data.patient, PATIENT);
     assert.equal(capabilities.calls.length, 0);
+  } finally { await app.close(); }
+});
+
+test("GET /api/history keeps the pharmacist name when a record has one", async () => {
+  const store = createDispensingStore({ client: fakeClient() });
+  await store.add({ prescriptionCode: CODE, patient: PATIENT, outcome: "dispensed", items: [], pharmacist: "duocsi.nhathuoc", pharmacistName: "DS. Võ Thu Trang", at: "2026-11-01T08:00:00.000Z" });
+  const app = await startApp({ capabilities: fakeCapabilities(), dispensing: store });
+  try {
+    const response = await request(app, { token: app.signer.sign(), method: "GET", path: "/api/history", contentType: null });
+    assert.equal(response.status, 200);
+    assert.equal(response.body.items[0].pharmacist, "duocsi.nhathuoc");
+    assert.equal(response.body.items[0].pharmacistName, "DS. Võ Thu Trang");
+  } finally { await app.close(); }
+});
+
+test("GET /api/history fills the staff display name for older records", async () => {
+  const store = createDispensingStore({ client: fakeClient() });
+  await store.add({ prescriptionCode: CODE, patient: PATIENT, outcome: "dispensed", items: [], pharmacist: "duocsi.nhathuoc", at: "2026-11-01T08:00:00.000Z" });
+  await store.add({ prescriptionCode: "DT-2026-009998", patient: PATIENT, outcome: "refused", reason: "Sai liều", pharmacist: "ai.do", at: "2026-11-01T09:00:00.000Z" });
+  const app = await startApp({ capabilities: fakeCapabilities(), dispensing: store });
+  try {
+    const response = await request(app, { token: app.signer.sign(), method: "GET", path: "/api/history", contentType: null });
+    const names = Object.fromEntries(response.body.items.map(entry => [entry.pharmacist, entry.pharmacistName]));
+    assert.ok(names["duocsi.nhathuoc"] && names["duocsi.nhathuoc"] !== "duocsi.nhathuoc");
+    assert.equal(names["ai.do"], "ai.do");
   } finally { await app.close(); }
 });
 

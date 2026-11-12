@@ -4,7 +4,7 @@ import {
   AlertBanner, Badge, Button, DataTable, Dialog, EmptyState, PageHeader, SelectField, StatCard, Tabs,
   TextAreaField, TextField, formatDate, formatNumber, type Column, type Tone,
 } from "@junctura/health-ui";
-import { PackagePlus } from "lucide-react";
+import { ClipboardCheck, PackagePlus, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, adjustStock, getStock, receiveStock } from "./api";
 import { useLocation } from "./router";
@@ -256,8 +256,12 @@ export function Stock() {
   const lotColumns: Column<StockItem>[] = [
     { key: "name", header: "Tên thuốc", render: item => item.name },
     { key: "strength", header: "Hàm lượng", render: item => item.strength },
-    { key: "lot", header: "Số lô", mono: true, render: item => item.lot },
-    { key: "expiresAt", header: "Hạn dùng", render: item => <time dateTime={item.expiresAt}>{formatDate(item.expiresAt)}</time> },
+    { key: "lot", header: "Số lô", mono: true, render: item => <span className="whitespace-nowrap">{item.lot}</span> },
+    {
+      key: "expiresAt",
+      header: "Hạn dùng",
+      render: item => <time className="whitespace-nowrap" dateTime={item.expiresAt}>{formatDate(item.expiresAt)}</time>,
+    },
     {
       key: "onHand",
       header: "Tồn / đã nhập",
@@ -273,19 +277,31 @@ export function Stock() {
     {
       key: "status",
       header: "Trạng thái",
-      render: item => <Badge tone={STATUS[item.status].tone}>{STATUS[item.status].label}</Badge>,
+      render: item => <Badge className="whitespace-nowrap" tone={STATUS[item.status].tone}>{STATUS[item.status].label}</Badge>,
     },
     {
       key: "actions",
       header: "Thao tác",
       render: item => (
-        <div className="flex flex-wrap gap-1.5">
-          <Button type="button" variant="secondary" className="min-h-7 px-2 py-1 text-xs" onClick={() => openAdjust(item, "dispose")}>
-            Xuất hủy
-          </Button>
-          <Button type="button" variant="secondary" className="min-h-7 px-2 py-1 text-xs" onClick={() => openAdjust(item, "count")}>
-            Kiểm kê
-          </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            className="!min-h-7 !px-1.5"
+            aria-label="Xuất hủy"
+            title="Xuất hủy lô thuốc"
+            icon={<Trash2 aria-hidden className="size-4" />}
+            onClick={() => openAdjust(item, "dispose")}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            className="!min-h-7 !px-1.5"
+            aria-label="Kiểm kê"
+            title="Kiểm kê lô thuốc"
+            icon={<ClipboardCheck aria-hidden className="size-4" />}
+            onClick={() => openAdjust(item, "count")}
+          />
         </div>
       ),
     },
@@ -304,7 +320,7 @@ export function Stock() {
     {
       key: "status",
       header: "Trạng thái",
-      render: group => <Badge tone={STATUS[group.status].tone}>{STATUS[group.status].label}</Badge>,
+      render: group => <Badge className="whitespace-nowrap" tone={STATUS[group.status].tone}>{STATUS[group.status].label}</Badge>,
     },
   ];
 

@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import {
-  AlertBanner, Button, Card, DataTable, EmptyState, IdChip, PageHeader, formatDateTime, type Column,
+  AlertBanner, Button, Card, DataTable, EmptyState, PageHeader, formatDateTime, type Column,
 } from "@junctura/health-ui";
 import { ArrowLeft, Printer } from "lucide-react";
 import { ApiError, getHistoryItem } from "./api";
+import { ShortCode } from "./code";
 import { navigate } from "./router";
 import { Remote, useRemote, useSession } from "./session";
 import type { DispensedItem, HistoryItem } from "./types";
@@ -38,7 +39,7 @@ function Sheet({ record }: { record: HistoryItem }) {
         <dl className="grid gap-4 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wider text-muted">Mã đơn</dt>
-            <dd className="mt-1"><IdChip value={record.prescriptionCode} /></dd>
+            <dd className="mt-1"><ShortCode value={record.prescriptionCode} full /></dd>
           </div>
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wider text-muted">Thời điểm</dt>

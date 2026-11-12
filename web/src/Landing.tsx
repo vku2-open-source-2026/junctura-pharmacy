@@ -28,12 +28,12 @@ const HeroPicture = () => (
   <PreviewFrame label="Minh hoạ màn hình xác minh đơn của Nhà thuốc, dữ liệu giả lập" title="Pharmacy · Xác minh đơn">
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="brand">Dữ liệu giả lập</Badge>
+        <Badge className="whitespace-nowrap" tone="brand">Dữ liệu giả lập</Badge>
         <IdChip value="DT-2026-004521" label="Đơn thuốc" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="ok">Đơn hợp lệ</Badge>
-        <Badge tone="neutral">Chưa phát</Badge>
+        <Badge className="whitespace-nowrap" tone="ok">Đơn hợp lệ</Badge>
+        <Badge className="whitespace-nowrap" tone="neutral">Chưa phát</Badge>
         <ConsentBadge state="granted" />
       </div>
       <AlertBanner level="critical" title="Cảnh báo dị ứng Penicillin">

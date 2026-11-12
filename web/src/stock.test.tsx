@@ -86,6 +86,25 @@ describe("stock screen", () => {
     expect(within(table).getByText("5 / 100")).toBeTruthy();
   });
 
+  it("keeps lot numbers and expiry on one line and uses icon-only row actions", async () => {
+    mocked.getStock.mockResolvedValue(stockResult([ITEMS[0]]));
+    wrap();
+
+    const row = (await screen.findByText("LOT-A")).closest("tr");
+    expect(row).toBeTruthy();
+    expect(within(row as HTMLElement).getByText("LOT-A").className).toContain("whitespace-nowrap");
+    expect(row?.querySelector("time")?.className).toContain("whitespace-nowrap");
+
+    const dispose = within(row as HTMLElement).getByRole("button", { name: "Xuất hủy" });
+    const count = within(row as HTMLElement).getByRole("button", { name: "Kiểm kê" });
+    expect(dispose.getAttribute("title")).toBe("Xuất hủy lô thuốc");
+    expect(count.getAttribute("title")).toBe("Kiểm kê lô thuốc");
+    expect(dispose.textContent).toBe("");
+    expect(count.textContent).toBe("");
+    expect(dispose.querySelector("svg")).toBeTruthy();
+    expect(count.querySelector("svg")).toBeTruthy();
+  });
+
   it("suggests importing a lot or seeding when the stock is empty", async () => {
     mocked.getStock.mockResolvedValue(stockResult([]));
     wrap();

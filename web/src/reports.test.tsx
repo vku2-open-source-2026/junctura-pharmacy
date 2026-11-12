@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe("reports screen", () => {
-  it("shows the totals, the medicines and only the days with activity", async () => {
+  it("shows the totals, the medicines and every day in the range", async () => {
     mocked.getReport.mockResolvedValue(report());
     wrap();
 
@@ -62,18 +62,17 @@ describe("reports screen", () => {
     };
     expect(card("Đã phát")).toContain("5");
     expect(card("Đã từ chối")).toContain("2");
-    expect(card("Tỷ lệ từ chối (%)")).toContain("28,6%");
+    expect(screen.getByText("tỷ lệ 28,6%")).toBeTruthy();
     expect(card("Phát dù trùng dị ứng")).toContain("1");
     expect(card("Bị chặn vì chưa đồng thuận")).toContain("3");
 
     expect(screen.getByText("10/11/2026")).toBeTruthy();
+    expect(screen.getByText("11/11/2026")).toBeTruthy();
     expect(screen.getByText("12/11/2026")).toBeTruthy();
-    expect(screen.queryByText("11/11/2026")).toBeNull();
-    expect(screen.getByText("Các ngày không có đơn được ẩn")).toBeTruthy();
 
     expect(screen.getByText("Amoxicillin")).toBeTruthy();
     expect(screen.getByText("500 mg")).toBeTruthy();
-    expect(screen.getByText("Sai liều")).toBeTruthy();
+    expect(screen.getAllByText("Sai liều").length).toBeGreaterThan(0);
   });
 
   it("explains an invalid range returned as 400", async () => {
@@ -91,7 +90,6 @@ describe("reports screen", () => {
     await screen.findByText("Báo cáo chỉ có số đếm, không có thông tin người bệnh.");
     fireEvent.change(screen.getByLabelText("Từ ngày"), { target: { value: "2026-11-01" } });
     fireEvent.change(screen.getByLabelText("Đến ngày"), { target: { value: "2026-11-05" } });
-    await userEvent.click(screen.getByRole("button", { name: "Xem" }));
 
     await waitFor(() => expect(mocked.getReport).toHaveBeenLastCalledWith(session.settings, "2026-11-01", "2026-11-05"));
 
