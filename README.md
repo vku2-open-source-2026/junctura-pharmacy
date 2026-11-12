@@ -14,7 +14,7 @@
 [![REUSE compliant](https://img.shields.io/badge/REUSE-compliant-18877A.svg)](REUSE.toml)
 ![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E.svg)
 
-[Giới thiệu](#giới-thiệu) · [Kiến trúc](#kiến-trúc) · [Bắt đầu nhanh](#bắt-đầu-nhanh) · [Cấu hình](#cấu-hình) · [Trang và API](#trang-và-api-chính) · [Tài liệu](#tài-liệu) · [Lộ trình](#lộ-trình)
+[Giới thiệu](#giới-thiệu) · [Giao diện](#giao-diện) · [Kiến trúc](#kiến-trúc) · [Bắt đầu nhanh](#bắt-đầu-nhanh) · [Cấu hình](#cấu-hình) · [Trang và API](#trang-và-api-chính) · [Tài liệu](#tài-liệu) · [Lộ trình](#lộ-trình)
 
 </div>
 
@@ -49,8 +49,8 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 - **Cảnh báo dị ứng trên từng dòng thuốc**, theo tên và nhóm dị ứng phổ biến (ví dụ dị ứng Penicillin thì cảnh báo Amoxicillin). Phát thuốc trùng dị ứng phải ghi lý do; máy chủ tự tính lại và lưu lý do. Đây là lưới an toàn, không thay đánh giá chuyên môn.
 
 **Hôm nay**
-- Trang tổng quan trong ngày theo giờ Việt Nam: số đơn đã xác minh, đã phát, đã từ chối, chưa có đồng thuận và phát dù trùng dị ứng.
-- Lô thuốc cần chú ý (hết hạn, hết hàng, sắp hết hạn, sắp hết) và 5 đơn phát/từ chối gần nhất; phần nào lỗi chỉ báo phần đó.
+- Trang tổng quan trong ngày theo giờ Việt Nam: số đơn đã phát, đã từ chối, bị chặn vì chưa đồng thuận và phát dù trùng dị ứng, mỗi số có dòng giải thích.
+- "Cần xử lý": lô đã hết hạn, hết hàng, sắp hết hạn, sắp hết và đơn bị chặn vì chưa đồng thuận, bấm vào là tới đúng trang. Bên cạnh là các đơn phát/từ chối gần nhất; phần nào lỗi chỉ báo phần đó.
 
 **Phát thuốc và kho**
 - Phát từng dòng thuốc với số lượng và lô **chọn từ kho** (gợi ý lô hết hạn sớm nhất còn đủ hàng) hoặc nhập tay; hỏi xác nhận trước khi ghi. Máy chủ **xác minh lại đơn** trước khi ghi, không tin kết quả cũ từ trình duyệt.
@@ -59,14 +59,42 @@ Người bệnh mang đơn thuốc từ bệnh viện ra nhà thuốc. Dược s
 - Kho theo lô: tồn kho = số đã nhập trừ số đã phát và số đã điều chỉnh; cảnh báo lô sắp hết, hết hàng, sắp hết hạn, đã hết hạn; nhập lô, xuất hủy, kiểm kê (đều có lý do); xem theo lô hoặc gộp theo thuốc, tìm không dấu, lọc theo trạng thái. Ngưỡng "sắp hết" và "sắp hết hạn" chỉnh trong Cài đặt.
 
 **Lịch sử và nhật ký**
-- Lịch sử các đơn đã phát và đã từ chối, không hiện mã người bệnh; mở từng lần để xem và **in phiếu phát thuốc**.
-- "Nhật ký Junctura": mỗi lần nhà thuốc hỏi Junctura — năng lực nào, mục đích, kết quả, đơn nào, dược sĩ nào. Không lưu người bệnh, thuốc hay dị ứng.
+- Lịch sử các đơn đã phát và đã từ chối, lọc theo kết quả, tìm theo mã đơn hoặc tên thuốc, không hiện mã người bệnh; mở từng lần để xem và **in phiếu phát thuốc**.
+- "Nhật ký Junctura": mỗi lần xác minh đơn là một dòng — đã hỏi dữ liệu gì (đơn thuốc, dị ứng), kết quả từng phần, đơn nào, dược sĩ nào. Không lưu người bệnh, thuốc hay dị ứng.
 - "Nhật ký thao tác": ai xác minh, phát, từ chối, nhập kho, điều chỉnh kho, đổi cài đặt, lúc nào.
 
 **Báo cáo và tiện ích**
-- Báo cáo theo khoảng ngày (tối đa 92 ngày): số đơn phát và từ chối theo ngày, số lượng theo thuốc, lý do từ chối, tỷ lệ từ chối, phát dù trùng dị ứng, bị chặn vì chưa đồng thuận; tải CSV mở đúng tiếng Việt trong Excel. Chỉ có số đếm, không có người bệnh.
-- Tìm nhanh từ mọi màn (`/` hoặc Ctrl+K): trang, mã đơn, thuốc, số lô. Mã đơn hiện bằng font đơn cách, có nút sao chép.
+- Báo cáo bằng biểu đồ theo khoảng ngày (chọn nhanh 7/30/90 ngày, tối đa 92 ngày): cột phát và từ chối theo ngày, thuốc phát nhiều nhất, lý do từ chối, tỷ lệ từ chối, phát dù trùng dị ứng, bị chặn vì chưa đồng thuận. Mỗi biểu đồ có dạng bảng đi kèm; tải CSV mở đúng tiếng Việt trong Excel. Chỉ có số đếm, không có người bệnh.
+- Tìm nhanh từ mọi màn (`/` hoặc Ctrl+K): trang, mã đơn, thuốc, số lô. Mã đơn hiện gọn (6 số cuối), nút sao chép vẫn chép mã đầy đủ.
 - Giao diện dựng trên [`@junctura/health-ui`](https://www.npmjs.com/package/@junctura/health-ui): sáng/tối, cỡ chữ, dùng được trên điện thoại.
+
+## Giao diện
+
+Ảnh chụp với dữ liệu giả lập (`npm run seed:activity`).
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/01-verify.png" alt="Xác minh đơn"><br><sub><b>Xác minh đơn</b>: đơn, dị ứng và cảnh báo thuốc trùng dị ứng trong một màn hình, kèm nguồn dữ liệu</sub></td>
+    <td width="50%"><img src="docs/screenshots/02-today.png" alt="Hôm nay"><br><sub><b>Hôm nay</b>: số liệu trong ngày, việc cần xử lý, đơn gần đây</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/03-reports.png" alt="Báo cáo"><br><sub><b>Báo cáo</b>: biểu đồ theo ngày, thuốc phát nhiều nhất, lý do từ chối, tải CSV</sub></td>
+    <td width="50%"><img src="docs/screenshots/04-stock.png" alt="Kho"><br><sub><b>Kho</b>: tồn theo lô, cảnh báo sắp hết và sắp hết hạn, xuất hủy, kiểm kê</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/05-history.png" alt="Lịch sử"><br><sub><b>Lịch sử</b>: lọc theo kết quả, tìm theo mã đơn hoặc tên thuốc</sub></td>
+    <td width="50%"><img src="docs/screenshots/06-junctura-log.png" alt="Nhật ký Junctura"><br><sub><b>Nhật ký Junctura</b>: mỗi lần xác minh đã hỏi dữ liệu gì và kết quả</sub></td>
+  </tr>
+</table>
+
+**Phiếu phát thuốc và trên điện thoại.** Mỗi lần phát có phiếu in được, ghi rõ lý do nếu phát dù trùng dị ứng; dược sĩ có thể quét mã QR bằng camera điện thoại.
+
+<table>
+  <tr>
+    <td width="75%"><img src="docs/screenshots/07-slip.png" alt="Phiếu phát thuốc"></td>
+    <td width="25%"><img src="docs/screenshots/08-verify-phone.png" alt="Xác minh đơn trên điện thoại"></td>
+  </tr>
+</table>
 
 ## Kiến trúc
 
@@ -283,6 +311,7 @@ web/            giao diện React (web/src)
 tests/          kiểm thử máy chủ
 scripts/        kiểm tra SPDX và REUSE, nạp kho mẫu
 docs/assets/    logo
+docs/screenshots/ ảnh chụp giao diện cho README
 Dockerfile      ảnh container (build nhiều giai đoạn)
 ```
 

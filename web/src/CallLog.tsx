@@ -117,7 +117,7 @@ const COLUMNS: Column<CallGroup>[] = [
       return <Badge className="whitespace-nowrap" tone={outcome.tone}>{outcome.label}</Badge>;
     },
   },
-  { key: "pharmacist", header: "Dược sĩ", render: group => group.pharmacistName ?? group.pharmacist },
+  { key: "pharmacist", header: "Dược sĩ", render: group => <span className="whitespace-nowrap">{group.pharmacistName ?? group.pharmacist}</span> },
 ];
 
 export function CallLog() {

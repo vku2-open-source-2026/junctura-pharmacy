@@ -35,7 +35,7 @@ const COLUMNS: Column<HistoryItem>[] = [
       ? (item.items ?? []).map(drug => `${drug.name} ×${drug.quantity} (lô ${drug.lot})`).join("; ") || "—"
       : item.reason ?? "—",
   },
-  { key: "pharmacist", header: "Dược sĩ", render: item => item.pharmacistName ?? item.pharmacist },
+  { key: "pharmacist", header: "Dược sĩ", render: item => <span className="whitespace-nowrap">{item.pharmacistName ?? item.pharmacist}</span> },
   {
     key: "open",
     header: "Chi tiết",

@@ -47,7 +47,7 @@ function Sheet({ record }: { record: HistoryItem }) {
           </div>
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wider text-muted">Dược sĩ</dt>
-            <dd className="mt-1 text-ink">{record.pharmacist}</dd>
+            <dd className="mt-1 text-ink">{record.pharmacistName ?? record.pharmacist}</dd>
           </div>
         </dl>
       </Card>
