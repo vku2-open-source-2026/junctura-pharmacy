@@ -56,7 +56,11 @@ export interface VerificationResult {
   allergies: AllergyResult;
   dispensable: boolean;
   blockers: Blocker[];
+  /** Prescribed medicines that match a recorded allergy (by name or allergy class). */
+  allergyConflicts?: AllergyConflict[];
 }
+
+export interface AllergyConflict { medicine: string; allergen: string; severity: string }
 
 export type VerifyInput = { qr: string } | { prescriptionCode: string; patient: string };
 
@@ -66,7 +70,7 @@ export interface DispenseItem {
   lot: string;
 }
 
-export type DispenseInput = VerifyInput & { items: DispenseItem[] };
+export type DispenseInput = VerifyInput & { items: DispenseItem[]; allergyOverride?: string };
 
 export interface DispensedItem extends DispenseItem {
   strength: string;

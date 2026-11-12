@@ -174,7 +174,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
     if (parsed.status === 400) return send(res, 400, { error: "invalid-request" });
 
-    const request = verificationRequest(parsed.body, ["items"]);
+    const request = verificationRequest(parsed.body, ["items", "allergyOverride"]);
     if (!request || !Array.isArray(parsed.body.items)) return send(res, 400, { error: "invalid-request" });
 
     try {
@@ -205,6 +205,16 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       }
       if (items.length === 0) return send(res, 400, { error: "items-mismatch" });
 
+      // A medicine that matches a recorded allergy is only dispensed with a written reason,
+      // recomputed here from Junctura's answers rather than trusted from the browser.
+      const dispensedNames = new Set(items.map(item => item.name));
+      const conflicts = result.allergyConflicts.filter(conflict => dispensedNames.has(conflict.medicine));
+      const override = typeof parsed.body.allergyOverride === "string" ? parsed.body.allergyOverride.trim() : "";
+      if (parsed.body.allergyOverride !== undefined && ([...override].length < 10 || [...override].length > 200)) {
+        return send(res, 400, { error: "invalid-request" });
+      }
+      if (conflicts.length && !override) return send(res, 409, { error: "allergy-conflict", conflicts });
+
       // Stock is optional: a lot the pharmacy never received is still dispensed,
       // but a known lot must not be expired and must have enough on hand.
       if (stock) {
@@ -222,6 +232,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
         patient: request.patient,
         outcome: "dispensed",
         items,
+        ...(conflicts.length && { allergyOverride: override }),
         pharmacist: user.username,
         at: new Date().toISOString(),
       };

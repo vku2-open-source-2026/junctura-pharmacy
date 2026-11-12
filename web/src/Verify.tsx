@@ -9,7 +9,7 @@ import { useState, type FormEvent } from "react";
 import { ApiError, dispense, refuse, verifyPrescription } from "./api";
 import { useSession } from "./session";
 import type {
-  Blocker, CapabilityStatus, DispenseItem, PrescriptionItem, VerificationResult, VerifyInput,
+  AllergyConflict, Blocker, CapabilityStatus, DispenseItem, PrescriptionItem, VerificationResult, VerifyInput,
 } from "./types";
 
 const BLOCKER_TEXT: Record<Blocker, string> = {
@@ -47,6 +47,7 @@ function capabilityText(status: CapabilityStatus): string {
 function dispenseError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === "not-dispensable") return blockersText(error.blockers) || "Đơn không thể phát.";
+    if (error.code === "allergy-conflict") return "Đơn có thuốc trùng với dị ứng đã ghi nhận. Ghi lý do vẫn phát trước khi xác nhận.";
     if (error.code === "already-dispensed") return "Đơn đã được phát. Không thể phát lại.";
     if (error.code === "items-mismatch") return "Số lượng hoặc số lô chưa khớp với đơn. Kiểm tra lại.";
     if (error.code === "lot-expired") return "Lô này đã hết hạn. Không phát thuốc từ lô này; chọn lô khác.";
@@ -66,8 +67,20 @@ function requestError(error: unknown, action: string): string {
   return `${action}. Kiểm tra kết nối rồi thử lại.`;
 }
 
-const COLUMNS: Column<PrescriptionItem>[] = [
-  { key: "name", header: "Tên thuốc", render: item => item.name },
+const columnsFor = (conflicts: AllergyConflict[]): Column<PrescriptionItem>[] => [
+  {
+    key: "name",
+    header: "Tên thuốc",
+    render: item => {
+      const allergens = conflicts.filter(conflict => conflict.medicine === item.name).map(conflict => conflict.allergen);
+      return (
+        <span className="flex flex-wrap items-center gap-2">
+          {item.name}
+          {allergens.length > 0 && <Badge tone="danger">Trùng dị ứng: {allergens.join(", ")}</Badge>}
+        </span>
+      );
+    },
+  },
   { key: "strength", header: "Hàm lượng", render: item => item.strength },
   { key: "quantity", header: "Số lượng", align: "right", render: item => item.quantity },
   { key: "instructions", header: "Cách dùng", render: item => item.instructions },
@@ -89,6 +102,8 @@ export function Verify() {
   const [refusing, setRefusing] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | null>(null);
+  const [override, setOverride] = useState("");
+  const conflicts = result?.allergyConflicts ?? [];
 
   const fail = (error: unknown, action: string) => {
     if (error instanceof ApiError && error.status === 401) expire();
@@ -129,6 +144,7 @@ export function Verify() {
       const items = next.prescription.status === "ok" ? next.prescription.output?.items ?? [] : [];
       setQuantities(Object.fromEntries(items.map(item => [item.name, String(item.quantity)])));
       setLots(Object.fromEntries(items.map(item => [item.name, ""])));
+      setOverride("");
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) expire();
       setResult(null);
@@ -158,11 +174,16 @@ export function Verify() {
       }
       payload.push({ name: item.name, quantity, lot });
     }
+    const overrideReason = override.trim();
+    if (conflicts.length > 0 && ([...overrideReason].length < 10 || [...overrideReason].length > 200)) {
+      setFormError("Đơn có thuốc trùng với dị ứng đã ghi nhận. Ghi lý do vẫn phát (10–200 ký tự) sau khi đã hỏi lại người bệnh hoặc bác sĩ.");
+      return;
+    }
 
     setFormError(null);
     setBusy(true);
     try {
-      await dispense(settings, { ...request, items: payload });
+      await dispense(settings, { ...request, items: payload, ...(conflicts.length > 0 && { allergyOverride: overrideReason }) });
       setMessage({ tone: "ok", text: `Đã phát thuốc cho đơn ${result.prescriptionCode}.` });
       setResult(null);
       setRequest(null);
@@ -273,7 +294,7 @@ export function Verify() {
                     <dd className="font-medium text-ink">{output.dispensed ? "Đã phát thuốc" : "Chưa phát thuốc"}</dd>
                   </div>
                 </dl>
-                <DataTable caption="Thuốc trong đơn" columns={COLUMNS} rows={output.items} rowKey={item => item.name} />
+                <DataTable caption="Thuốc trong đơn" columns={columnsFor(conflicts)} rows={output.items} rowKey={item => item.name} />
                 <div className="flex flex-wrap items-center gap-3">
                   <SourceBadge source="Bệnh viện" />
                   {prescription?.receivedAt && <span className="text-sm text-muted">Nhận lúc {formatDateTime(prescription.receivedAt)}</span>}
@@ -304,6 +325,19 @@ export function Verify() {
               <AllergyStatus state="unavailable" reason="Không xem được thông tin dị ứng từ Trạm y tế." />
             )}
           </Card>
+
+          {conflicts.length > 0 && (
+            <AlertBanner level="critical" title="Thuốc trong đơn trùng với dị ứng đã ghi nhận">
+              <ul className="list-disc space-y-1 pl-5">
+                {conflicts.map(conflict => (
+                  <li key={`${conflict.medicine}-${conflict.allergen}`}>
+                    {conflict.medicine}: người bệnh dị ứng {conflict.allergen} ({SEVERITY_LABEL[conflict.severity] ?? "chưa rõ mức độ"})
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2">Hỏi lại người bệnh hoặc liên hệ bác sĩ kê đơn trước khi phát. Cảnh báo dựa trên tên và nhóm thuốc phổ biến, không thay cho đánh giá chuyên môn.</p>
+            </AlertBanner>
+          )}
 
           {result.blockers.length > 0 && (
             <div className="space-y-3">
@@ -341,6 +375,16 @@ export function Verify() {
                     </li>
                   ))}
                 </ul>
+                {conflicts.length > 0 && (
+                  <TextAreaField
+                    label="Lý do vẫn phát thuốc trùng dị ứng"
+                    hint="10–200 ký tự. Lý do được lưu vào lịch sử phát thuốc."
+                    required
+                    maxLength={200}
+                    value={override}
+                    onChange={event => setOverride(event.target.value)}
+                  />
+                )}
                 {formError && <p role="alert" className="text-sm text-danger">{formError}</p>}
                 <Button type="submit" loading={busy}>Xác nhận phát thuốc</Button>
               </form>

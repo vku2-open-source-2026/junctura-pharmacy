@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
+import { findAllergyConflicts } from "./allergy-check.mjs";
 
 /**
  * Calls both capabilities for one prescription and returns the verification result
@@ -14,6 +15,9 @@ export async function runVerification({ capabilities, prescriptionCode, patient,
   const value = typeof now === "function" ? now() : now;
   const checkedAt = value instanceof Date ? value : new Date(value);
   const { dispensable, blockers } = computeDispensable(prescription, allergies, checkedAt);
+  const allergyConflicts = prescription.status === "ok" && allergies.status === "ok"
+    ? findAllergyConflicts(prescription.output?.items, allergies.output?.allergies)
+    : [];
   return {
     prescriptionCode,
     patient,
@@ -22,6 +26,7 @@ export async function runVerification({ capabilities, prescriptionCode, patient,
     allergies,
     dispensable,
     blockers,
+    allergyConflicts,
   };
 }
 
