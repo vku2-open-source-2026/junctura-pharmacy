@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Junctura Contributors
+# SPDX-License-Identifier: Apache-2.0
+# DEVELOPMENT ONLY: stand-in Hospital and Clinic providers so Pharmacy can be tried end to end
+# before the real apps run (`npm run dev:providers`). Needs junctura-dxos running with
+# compose.providers.yaml and `npm run provider:pki -- clinic hospital` there, and
+# junctura-health (read only) for the synthetic seed and the demo credentials.
+# DEV_PROVIDER_UID must be the user that owns those credential files.
+x-provider: &provider
+  image: node:24-bookworm-slim
+  user: "${DEV_PROVIDER_UID:-1000}"
+  working_dir: /app
+  restart: unless-stopped
+  environment: &env
+    JUNCTURA_HEALTH_DIR: /health
+    GATEWAY_UPSTREAM: gateway:8080
+    PROVIDER_PORT: "8443"
+
+services:
+  dev-hospital:
+    <<: *provider
+    command: ["node", "scripts/dev-providers/provider.mjs", "hospital"]
+    environment:
+      <<: *env
+      PROVIDER_TLS_CERT: /pki/hospital.provider.internal.crt
+      PROVIDER_TLS_KEY: /pki/hospital.provider.internal.key
+    volumes: &volumes
+      - ../..:/app:ro
+      - ${JUNCTURA_HEALTH_DIR:-../../../junctura-health}:/health:ro
+      - ${JUNCTURA_DXOS_DIR:-../../../junctura-dxos}/.junctura/pki:/pki:ro
+    networks:
+      edge: {}
+      providers: { aliases: [hospital.provider.internal] }
+
+  dev-clinic:
+    <<: *provider
+    command: ["node", "scripts/dev-providers/provider.mjs", "clinic"]
+    environment:
+      <<: *env
+      PROVIDER_TLS_CERT: /pki/clinic.provider.internal.crt
+      PROVIDER_TLS_KEY: /pki/clinic.provider.internal.key
+    volumes: *volumes
+    networks:
+      edge: {}
+      providers: { aliases: [clinic.provider.internal] }
+
+networks:
+  edge: { external: true, name: junctura_edge }
+  providers: { external: true, name: junctura_providers }

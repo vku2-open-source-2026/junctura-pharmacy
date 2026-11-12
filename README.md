@@ -157,6 +157,7 @@ npm ci                # cài thư viện máy chủ từ lockfile
 npm run web:install   # cài thư viện giao diện từ lockfile
 npm run build         # build giao diện vào web/dist
 npm run seed:stock    # (tùy chọn) nạp kho thuốc mẫu
+npm run seed:activity # (tùy chọn) nạp 30 ngày hoạt động giả lập
 npm start             # chạy máy chủ
 ```
 
@@ -176,6 +177,20 @@ Nếu `JUNCTURA_URL` trỏ tới Junctura chạy trên máy chủ, thêm `--add-
 
 **Phát triển giao diện.** Chạy `npm run dev:server` (API, cổng 5194) và `npm run dev` (giao diện, cổng 5184, tự chuyển `/api` sang 5194).
 
+**Thử trọn luồng khi Hospital, Clinic, MyHealth chưa chạy (chỉ khi phát triển).** Hai công cụ trong `scripts/` thay tạm cho các ứng dụng đó; chúng không thuộc Pharmacy và bỏ đi khi ứng dụng thật có:
+
+```sh
+# Provider tạm đóng vai Hospital (prescription-verify) và Clinic (allergy-list) từ dữ liệu mẫu
+# của junctura-health (chỉ đọc), qua đúng cơ chế đổi vé của Junctura.
+# Cần junctura-dxos đã bật C4A, có mạng providers và chứng chỉ (npm run provider:pki -- clinic hospital).
+DEV_PROVIDER_UID=$(id -u) npm run dev:providers
+
+# Đồng thuận mẫu của một người bệnh cho Nhà thuốc (như MyHealth sẽ làm); --revoke để thu hồi.
+npm run dev:consent -- benhnhan.an
+```
+
+Provider tạm thêm một đơn kịch bản `DT-2026-004537` (Amoxicillin cho Nguyễn Văn An, dị ứng Penicillin) để thử cảnh báo dị ứng.
+
 ### Lệnh thường dùng
 
 | Lệnh | Tác dụng |
@@ -184,6 +199,8 @@ Nếu `JUNCTURA_URL` trỏ tới Junctura chạy trên máy chủ, thêm `--add-
 | `npm run build` | Build giao diện vào `web/dist` |
 | `npm run dev:server` · `npm run dev` | Chạy API và giao diện ở chế độ phát triển |
 | `npm run seed:stock` | Nạp kho mẫu từ danh mục thuốc dùng chung; chạy lại không nhân đôi |
+| `npm run seed:activity` | Nạp khoảng 30 ngày hoạt động giả lập (phát, từ chối, gọi Junctura, nhật ký) để các trang Hôm nay, Báo cáo, Lịch sử, Nhật ký có số liệu; chỉ nạp một lần |
+| `npm run dev:providers` · `npm run dev:consent` | Provider tạm và đồng thuận mẫu để thử trọn luồng khi phát triển |
 | `npm run check` | Kiểm tra header SPDX, giấy phép và thư viện |
 | `npm run check:reuse` | Kiểm tra tuân thủ REUSE 3.3 (cần `pip install -r requirements-reuse.txt`, hoặc `docker run --rm -v "$PWD":/data fsfe/reuse:6.2.0 lint`) |
 | `npm test` · `npm run web:test` | Kiểm thử máy chủ · kiểm thử giao diện |
@@ -295,7 +312,7 @@ GitHub Actions chạy cả bốn lệnh và build giao diện ở mỗi Pull Req
 - [ ] Đọc mã QR bằng bộ đọc dùng chung trong `@junctura/health-contracts`.
 - [ ] Bản phát hành `v0.1.0` kèm gói `.tar.gz`.
 
-Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh viện chưa được báo lại; kho bản ghi của Junctura chỉ liệt kê 100 bản ghi mới nhất mỗi loại, nên lịch sử, kho và nhật ký chỉ tính trong phạm vi đó; quét mã bằng camera chỉ dùng được trên HTTPS hoặc localhost. Tiến độ chi tiết ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
+Giới hạn hiện tại: dấu "đã phát" chỉ ghi ở nhà thuốc, bệnh viện chưa được báo lại; API liệt kê của kho bản ghi Junctura chỉ trả 100 bản ghi **đầu tiên** (cũ nhất) mỗi loại và chưa có phân trang, nên khi một loại vượt 100 bản ghi, bản ghi mới sẽ không hiện trong lịch sử, kho và nhật ký (đã báo nhóm Tầng 1); quét mã bằng camera chỉ dùng được trên HTTPS hoặc localhost. Tiến độ chi tiết ở [Issues](https://github.com/vku2-open-source-2026/junctura-pharmacy/issues).
 
 ## Đóng góp
 

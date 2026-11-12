@@ -26,7 +26,10 @@
     "check": "node scripts/check.mjs",
     "check:reuse": "node scripts/check-reuse.mjs",
     "seed:stock": "node scripts/seed-stock.mjs",
-    "test": "node --test \"tests/*.test.mjs\""
+    "test": "node --test \"tests/*.test.mjs\"",
+    "seed:activity": "node scripts/seed-activity.mjs",
+    "dev:providers": "docker compose -f scripts/dev-providers/compose.yaml up -d",
+    "dev:consent": "node scripts/dev-consent.mjs"
   },
   "dependencies": {
     "@junctura/health-contracts": "^1.1.0",
