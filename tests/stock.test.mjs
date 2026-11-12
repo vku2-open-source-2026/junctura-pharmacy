@@ -306,6 +306,26 @@ test("POST /api/dispense refuses a known lot with too little on hand", async () 
   } finally { await app.close(); }
 });
 
+test("POST /api/dispense refuses a known lot that has expired", async () => {
+  const client = fakeClient();
+  const stock = createStock({ client, dispensing: createDispensingStore({ client }) });
+  await stock.receive({
+    name: "Clopidogrel", strength: "75 mg", lot: "LOT-OLD", quantity: 50,
+    expiresAt: "2000-01-01", receivedBy: "duocsi.nhathuoc",
+  });
+  const app = await startApp({ capabilities: fakeCapabilities(), dispensing: createDispensingStore({ client }), stock });
+  try {
+    const response = await request(app, {
+      token: app.signer.sign(),
+      path: "/api/dispense",
+      body: { qr: `JH1|RX|${CODE}|${PATIENT}`, items: [{ name: "Clopidogrel", quantity: 1, lot: "LOT-OLD" }] },
+    });
+    assert.equal(response.status, 409);
+    assert.deepEqual(response.body, { error: "lot-expired" });
+    assert.equal(client.records.filter(record => record.collection === "dispensations").length, 0);
+  } finally { await app.close(); }
+});
+
 test("POST /api/dispense subtracts earlier dispensations from the lot on hand", async () => {
   const client = fakeClient();
   const dispensing = createDispensingStore({ client });

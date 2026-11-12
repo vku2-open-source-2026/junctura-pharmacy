@@ -206,12 +206,13 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       if (items.length === 0) return send(res, 400, { error: "items-mismatch" });
 
       // Stock is optional: a lot the pharmacy never received is still dispensed,
-      // but a known lot must have enough on hand.
+      // but a known lot must not be expired and must have enough on hand.
       if (stock) {
         const lots = await stock.summary();
         const byLot = new Map(lots.map(lot => [`${lot.name}\u0000${lot.lot}`, lot]));
         for (const item of items) {
           const known = byLot.get(`${item.name}\u0000${item.lot}`);
+          if (known?.status === "expired") return send(res, 409, { error: "lot-expired" });
           if (known && known.onHand < item.quantity) return send(res, 409, { error: "insufficient-stock" });
         }
       }
