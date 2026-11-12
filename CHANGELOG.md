@@ -17,3 +17,9 @@ All notable changes to Junctura Pharmacy are recorded here. The format follows
 - API phát thuốc theo lô, từ chối có lý do và lịch sử lưu ở kho bản ghi của Junctura.
 - Giao diện xác minh, hiển thị dị ứng, phát hoặc từ chối đơn và xem lịch sử.
 - Dockerfile, `.dockerignore` và hướng dẫn chạy bằng Docker.
+- Kho thuốc theo lô (sổ nhập, cảnh báo sắp hết và sắp hết hạn, nhập lô, `npm run seed:stock`).
+- Nhật ký các lần gọi Junctura, không lưu thông tin người bệnh.
+
+### Fixed
+
+- Không cho phát thuốc từ lô đã hết hạn.

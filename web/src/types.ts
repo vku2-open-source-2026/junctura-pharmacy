@@ -102,3 +102,49 @@ export interface HistoryItem {
 export interface HistoryResult {
   items: HistoryItem[];
 }
+
+export interface CallLogItem {
+  capability: string;
+  purpose: string;
+  outcome: CapabilityStatus;
+  prescriptionCode?: string;
+  pharmacist: string;
+  at: string;
+}
+
+export interface CallLogResult {
+  items: CallLogItem[];
+}
+
+export type StockStatus = "ok" | "low" | "out" | "expiring" | "expired";
+
+export interface StockItem {
+  name: string;
+  strength: string;
+  lot: string;
+  expiresAt: string;
+  received: number;
+  dispensed: number;
+  onHand: number;
+  status: StockStatus;
+}
+
+export interface StockCounts {
+  low: number;
+  out: number;
+  expiring: number;
+  expired: number;
+}
+
+export interface StockResult {
+  items: StockItem[];
+  counts: StockCounts;
+}
+
+export interface ReceiveStockInput {
+  name: string;
+  strength: string;
+  lot: string;
+  quantity: number;
+  expiresAt: string;
+}

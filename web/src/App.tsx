@@ -1,14 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import { AppShell, Badge, Button, ErrorState, PermissionState, SignInPage, Skeleton, type NavGroup } from "@junctura/health-ui";
-import { History as HistoryIcon, ScanLine } from "lucide-react";
+import { ClipboardList, History as HistoryIcon, Package, ScanLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, getConfig, getMe } from "./api";
 import { buildLogoutUrl, clearSession, completeLogin, loadSession, startLogin } from "./auth";
+import { CallLog } from "./CallLog";
 import { History } from "./History";
 import { Landing } from "./Landing";
 import { navigate, useLocation } from "./router";
 import { NotFound, SessionProvider } from "./session";
+import { Stock } from "./Stock";
 import type { Me, PublicConfig } from "./types";
 import { Verify } from "./Verify";
 
@@ -27,11 +29,13 @@ const NAV: NavGroup[] = [
     items: [
       { id: "/", label: "Xác minh đơn", icon: <ScanLine aria-hidden className="size-4" /> },
       { id: "/lich-su", label: "Lịch sử", icon: <HistoryIcon aria-hidden className="size-4" /> },
+      { id: "/kho", label: "Kho", icon: <Package aria-hidden className="size-4" /> },
+      { id: "/nhat-ky", label: "Nhật ký", icon: <ClipboardList aria-hidden className="size-4" /> },
     ],
   },
 ];
 
-const CURRENT: Record<string, string> = { "/": "/", "/lich-su": "/lich-su" };
+const CURRENT: Record<string, string> = { "/": "/", "/lich-su": "/lich-su", "/kho": "/kho", "/nhat-ky": "/nhat-ky" };
 
 export function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
@@ -93,7 +97,15 @@ export function App() {
   }
 
   const me = state.me;
-  const page = path === "/" ? <Verify /> : path === "/lich-su" ? <History /> : <NotFound />;
+  const page = path === "/"
+    ? <Verify />
+    : path === "/lich-su"
+      ? <History />
+      : path === "/kho"
+        ? <Stock />
+        : path === "/nhat-ky"
+          ? <CallLog />
+          : <NotFound />;
 
   return (
     <SessionProvider value={{ settings: settings!, facility: config!.facility, expire, setCrumbs }}>
