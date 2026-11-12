@@ -124,6 +124,22 @@ describe("stock screen", () => {
     expect(screen.queryByText(/invalid-request/)).toBeNull();
   });
 
+  it("starts with the q parameter from the URL", async () => {
+    history.replaceState(null, "", "/kho?q=amox");
+    try {
+      mocked.getStock.mockResolvedValue(stockResult(ITEMS));
+      wrap();
+
+      const input = await screen.findByLabelText("Tìm theo tên thuốc hoặc số lô") as HTMLInputElement;
+      expect(input.value).toBe("amox");
+      const table = await screen.findByRole("table");
+      expect(within(table).getByText("Amoxicillin")).toBeTruthy();
+      expect(within(table).queryByText("Paracetamol")).toBeNull();
+    } finally {
+      history.replaceState(null, "", "/");
+    }
+  });
+
   it("checks the fields before sending a lot", async () => {
     mocked.getStock.mockResolvedValue(stockResult([ITEMS[0]]));
     wrap();

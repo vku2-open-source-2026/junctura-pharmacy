@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import {
-  AlertBanner, AllergyStatus, Badge, Button, Card, ConfirmDialog, DataTable, Dialog, ErrorState, PageHeader,
+  AlertBanner, AllergyStatus, Badge, Button, Card, ConfirmDialog, DataTable, Dialog, ErrorState, IdChip, PageHeader,
   PermissionState, SelectField, SourceBadge, TextAreaField, TextField, formatDate, formatDateTime, type Column,
 } from "@junctura/health-ui";
 import { ScanLine } from "lucide-react";
@@ -337,6 +337,7 @@ export function Verify() {
             {output ? (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
+                  <IdChip value={result.prescriptionCode} />
                   <Badge tone={output.valid && !result.blockers.some(blocker => blocker === "invalid" || blocker === "expired") ? "ok" : "danger"}>
                     {output.valid && !result.blockers.some(blocker => blocker === "invalid" || blocker === "expired") ? "Đơn hợp lệ" : "Đơn không hợp lệ"}
                   </Badge>

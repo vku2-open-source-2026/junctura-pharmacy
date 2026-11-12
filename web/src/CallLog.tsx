@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { Badge, Button, DataTable, EmptyState, PageHeader, formatDateTime, type Column, type Tone } from "@junctura/health-ui";
+import { Badge, Button, DataTable, EmptyState, IdChip, PageHeader, formatDateTime, type Column, type Tone } from "@junctura/health-ui";
 import { ArrowRight } from "lucide-react";
 import { getCallLog } from "./api";
 import { navigate } from "./router";
@@ -44,7 +44,7 @@ const COLUMNS: Column<CallLogItem>[] = [
     header: "Kết quả",
     render: item => <Badge tone={OUTCOME[item.outcome]?.tone ?? "neutral"}>{OUTCOME[item.outcome]?.label ?? "Không rõ"}</Badge>,
   },
-  { key: "prescriptionCode", header: "Mã đơn", mono: true, render: item => item.prescriptionCode ?? "—" },
+  { key: "prescriptionCode", header: "Mã đơn", render: item => item.prescriptionCode ? <IdChip value={item.prescriptionCode} /> : "—" },
   { key: "pharmacist", header: "Dược sĩ", render: item => item.pharmacist },
 ];
 

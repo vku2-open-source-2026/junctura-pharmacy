@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { Badge, Button, DataTable, EmptyState, PageHeader, formatDateTime, type Column, type Tone } from "@junctura/health-ui";
+import { Badge, Button, DataTable, EmptyState, IdChip, PageHeader, formatDateTime, type Column, type Tone } from "@junctura/health-ui";
 import { ArrowRight } from "lucide-react";
 import { getAudit } from "./api";
 import { navigate } from "./router";
@@ -36,7 +36,7 @@ const COLUMNS: Column<AuditItem>[] = [
     header: "Thao tác",
     render: item => <Badge tone={ACTION[item.action]?.tone ?? "neutral"}>{ACTION[item.action]?.label ?? item.action}</Badge>,
   },
-  { key: "prescriptionCode", header: "Mã đơn", mono: true, render: item => item.prescriptionCode ?? "—" },
+  { key: "prescriptionCode", header: "Mã đơn", render: item => item.prescriptionCode ? <IdChip value={item.prescriptionCode} /> : "—" },
   { key: "detail", header: "Chi tiết", render: item => item.detail || "—" },
 ];
 

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
-import { Badge, Button, DataTable, EmptyState, PageHeader, formatDateTime, type Column } from "@junctura/health-ui";
+import { Badge, Button, DataTable, EmptyState, IdChip, PageHeader, formatDateTime, type Column } from "@junctura/health-ui";
 import { getHistory } from "./api";
 import { navigate } from "./router";
 import { ArrowRight } from "lucide-react";
@@ -13,7 +13,7 @@ const COLUMNS: Column<HistoryItem>[] = [
     header: "Thời gian",
     render: item => <time dateTime={item.at}>{formatDateTime(item.at)}</time>,
   },
-  { key: "code", header: "Mã đơn", mono: true, render: item => item.prescriptionCode },
+  { key: "code", header: "Mã đơn", render: item => <IdChip value={item.prescriptionCode} /> },
   {
     key: "outcome",
     header: "Kết quả",

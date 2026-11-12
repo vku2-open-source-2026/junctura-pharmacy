@@ -5,8 +5,10 @@ import {
   TextAreaField, TextField, formatDate, formatNumber, type Column, type Tone,
 } from "@junctura/health-ui";
 import { PackagePlus } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, adjustStock, getStock, receiveStock } from "./api";
+import { useLocation } from "./router";
+import { fold } from "./search";
 import { Remote, useRemote, useSession } from "./session";
 import type { AdjustStockInput, ReceiveStockInput, StockItem, StockStatus } from "./types";
 
@@ -46,13 +48,6 @@ interface StockGroup {
   status: StockStatus;
 }
 
-function fold(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[đĐ]/g, "d")
-    .toLowerCase();
-}
 
 function matchesStatus(status: StockStatus, filter: StatusFilter): boolean {
   if (filter === "all") return true;
@@ -176,7 +171,8 @@ export function Stock() {
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<View>("lots");
-  const [search, setSearch] = useState("");
+  const { search: locationSearch } = useLocation();
+  const [search, setSearch] = useState(() => new URLSearchParams(locationSearch).get("q") ?? "");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [adjust, setAdjust] = useState<AdjustTarget | null>(null);
   const [adjustValue, setAdjustValue] = useState("");
@@ -184,6 +180,10 @@ export function Stock() {
   const [adjustErrors, setAdjustErrors] = useState<AdjustErrors>({});
   const [adjustFormError, setAdjustFormError] = useState<string | null>(null);
   const [adjustBusy, setAdjustBusy] = useState(false);
+
+  useEffect(() => {
+    setSearch(new URLSearchParams(locationSearch).get("q") ?? "");
+  }, [locationSearch]);
 
   const openDialog = () => {
     setForm(EMPTY_FORM);

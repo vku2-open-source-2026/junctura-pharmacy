@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { AppShell, Badge, Button, ErrorState, PermissionState, SignInPage, Skeleton, type NavGroup } from "@junctura/health-ui";
 import { BarChart3, ClipboardList, History as HistoryIcon, LayoutDashboard, Package, ScanLine, Settings as SettingsIcon, UserCheck } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ApiError, getConfig, getMe } from "./api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ApiError, getConfig, getHistory, getMe, getStock } from "./api";
 import { buildLogoutUrl, clearSession, completeLogin, loadSession, startLogin } from "./auth";
 import { Audit } from "./Audit";
 import { CallLog } from "./CallLog";
@@ -12,11 +12,12 @@ import { HistoryDetail } from "./HistoryDetail";
 import { Landing } from "./Landing";
 import { Reports } from "./Reports";
 import { navigate, useLocation } from "./router";
+import { searchAll } from "./search";
 import { NotFound, SessionProvider } from "./session";
 import { Settings } from "./Settings";
 import { Stock } from "./Stock";
 import { Today } from "./Today";
-import type { Me, PublicConfig } from "./types";
+import type { HistoryItem, Me, PublicConfig, StockItem } from "./types";
 import { Verify } from "./Verify";
 
 type State =
@@ -51,6 +52,9 @@ const CURRENT: Record<string, string> = {
 };
 
 const HISTORY_ITEM_PATH = /^\/lich-su\/([^/]+)$/;
+const SEARCH_CACHE_MS = 30_000;
+
+interface SearchData { history: HistoryItem[]; stock: StockItem[] }
 
 export function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
@@ -59,6 +63,22 @@ export function App() {
   const [crumbs, setCrumbs] = useState<string[]>([]);
   const settings = useMemo(() => (config ? { issuer: config.issuer, clientId: config.clientId } : null), [config]);
   const expire = useCallback(() => { clearSession(); setState({ kind: "signed-out", message: "Phiên đăng nhập đã hết hạn." }); }, []);
+  const searchCache = useRef<{ at: number; data: Promise<SearchData> } | null>(null);
+  const loadSearchData = useCallback((): Promise<SearchData> => {
+    const now = Date.now();
+    const cached = searchCache.current;
+    if (cached && now - cached.at < SEARCH_CACHE_MS) return cached.data;
+    const data = Promise.all([getHistory(settings!), getStock(settings!)])
+      .then(([history, stock]) => ({ history: history.items, stock: stock.items }))
+      .catch(() => ({ history: [] as HistoryItem[], stock: [] as StockItem[] }));
+    searchCache.current = { at: now, data };
+    return data;
+  }, [settings]);
+  const selectSearch = useCallback((result: { id: string }) => {
+    if (result.id.startsWith("page:")) navigate(result.id.slice("page:".length));
+    else if (result.id.startsWith("history:")) navigate(`/lich-su/${encodeURIComponent(result.id.slice("history:".length))}`);
+    else if (result.id.startsWith("stock:")) navigate(`/kho?q=${encodeURIComponent(result.id.slice("stock:".length))}`);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,7 +158,16 @@ export function App() {
       <AppShell product="Pharmacy" nav={NAV} current={historyMatch ? "/lich-su" : CURRENT[path] ?? ""} onNavigate={navigate} breadcrumbs={crumbs}
         status={<Badge tone="neutral">Bản demo</Badge>}
         unit={{ name: "Junctura Pharmacy", stations: [{ id: "main", name: config!.facility }] }}
-        user={{ name: me.displayName, role: ROLE_LABEL[me.role] ?? me.role }} onSignOut={signOut}>
+        user={{ name: me.displayName, role: ROLE_LABEL[me.role] ?? me.role }} onSignOut={signOut}
+        search={{
+          placeholder: "Tìm trang, mã đơn, thuốc hoặc số lô",
+          hint: "Nhấn / hoặc Ctrl+K",
+          onSearch: async query => {
+            if (query.trim() === "") return searchAll(query, { pages: NAV, history: [], stock: [] });
+            return searchAll(query, { pages: NAV, ...(await loadSearchData()) });
+          },
+          onSelect: selectSearch,
+        }}>
         {page}
       </AppShell>
     </SessionProvider>
