@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getHistory } from "./api";
 import { History } from "./History";
+import { navigate } from "./router";
 import { SessionProvider } from "./session";
 
 vi.mock("./api", async importOriginal => ({
@@ -13,7 +14,9 @@ vi.mock("./api", async importOriginal => ({
   getHistory: vi.fn(),
 }));
 
-const mocked = { getHistory: vi.mocked(getHistory) };
+vi.mock("./router", () => ({ navigate: vi.fn() }));
+
+const mocked = { getHistory: vi.mocked(getHistory), navigate: vi.mocked(navigate) };
 const session = { settings: { issuer: "https://id.test", clientId: "c" }, facility: "Nhà thuốc test", expire: () => {}, setCrumbs: () => {} };
 const wrap = () => render(<SessionProvider value={session}><History /></SessionProvider>);
 
@@ -34,11 +37,11 @@ describe("history screen", () => {
     mocked.getHistory.mockResolvedValue({
       items: [
         {
-          prescriptionCode: "DT-2026-004521", outcome: "dispensed", pharmacist: "duocsi.nhathuoc", at: "2026-11-01T09:00:00.000Z",
+          id: "rec-1", prescriptionCode: "DT-2026-004521", outcome: "dispensed", pharmacist: "duocsi.nhathuoc", at: "2026-11-01T09:00:00.000Z",
           items: [{ name: "Clopidogrel", strength: "75 mg", quantity: 30, lot: "LOT-A" }],
         },
         {
-          prescriptionCode: "DT-2026-009999", outcome: "refused", reason: "Sai liều", pharmacist: "duocsi.nhathuoc", at: "2026-11-01T08:00:00.000Z",
+          id: "rec-2", prescriptionCode: "DT-2026-009999", outcome: "refused", reason: "Sai liều", pharmacist: "duocsi.nhathuoc", at: "2026-11-01T08:00:00.000Z",
         },
       ],
     });
@@ -49,6 +52,11 @@ describe("history screen", () => {
     expect(screen.getByText("Từ chối")).toBeTruthy();
     expect(screen.getByText("Clopidogrel ×30 (lô LOT-A)")).toBeTruthy();
     expect(screen.getByText("Sai liều")).toBeTruthy();
+
+    const viewButtons = screen.getAllByRole("button", { name: "Xem" });
+    expect(viewButtons).toHaveLength(2);
+    await userEvent.click(viewButtons[0]);
+    expect(mocked.navigate).toHaveBeenCalledWith("/lich-su/rec-1");
   });
 
   it("offers a retry when loading fails", async () => {

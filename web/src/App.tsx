@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Junctura Contributors
 // SPDX-License-Identifier: Apache-2.0
 import { AppShell, Badge, Button, ErrorState, PermissionState, SignInPage, Skeleton, type NavGroup } from "@junctura/health-ui";
-import { ClipboardList, History as HistoryIcon, LayoutDashboard, Package, ScanLine } from "lucide-react";
+import { ClipboardList, History as HistoryIcon, LayoutDashboard, Package, ScanLine, UserCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, getConfig, getMe } from "./api";
 import { buildLogoutUrl, clearSession, completeLogin, loadSession, startLogin } from "./auth";
+import { Audit } from "./Audit";
 import { CallLog } from "./CallLog";
 import { History } from "./History";
+import { HistoryDetail } from "./HistoryDetail";
 import { Landing } from "./Landing";
 import { navigate, useLocation } from "./router";
 import { NotFound, SessionProvider } from "./session";
@@ -32,14 +34,18 @@ const NAV: NavGroup[] = [
       { id: "/hom-nay", label: "Hôm nay", icon: <LayoutDashboard aria-hidden className="size-4" /> },
       { id: "/lich-su", label: "Lịch sử", icon: <HistoryIcon aria-hidden className="size-4" /> },
       { id: "/kho", label: "Kho", icon: <Package aria-hidden className="size-4" /> },
-      { id: "/nhat-ky", label: "Nhật ký", icon: <ClipboardList aria-hidden className="size-4" /> },
+      { id: "/nhat-ky", label: "Nhật ký Junctura", icon: <ClipboardList aria-hidden className="size-4" /> },
+      { id: "/nhat-ky-thao-tac", label: "Nhật ký thao tác", icon: <UserCheck aria-hidden className="size-4" /> },
     ],
   },
 ];
 
 const CURRENT: Record<string, string> = {
-  "/": "/", "/hom-nay": "/hom-nay", "/lich-su": "/lich-su", "/kho": "/kho", "/nhat-ky": "/nhat-ky",
+  "/": "/", "/hom-nay": "/hom-nay", "/lich-su": "/lich-su", "/kho": "/kho",
+  "/nhat-ky": "/nhat-ky", "/nhat-ky-thao-tac": "/nhat-ky-thao-tac",
 };
+
+const HISTORY_ITEM_PATH = /^\/lich-su\/([^/]+)$/;
 
 export function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
@@ -101,21 +107,26 @@ export function App() {
   }
 
   const me = state.me;
+  const historyMatch = HISTORY_ITEM_PATH.exec(path);
   const page = path === "/"
     ? <Verify />
     : path === "/hom-nay"
       ? <Today />
       : path === "/lich-su"
         ? <History />
-        : path === "/kho"
-          ? <Stock />
-          : path === "/nhat-ky"
-            ? <CallLog />
-            : <NotFound />;
+        : historyMatch
+          ? <HistoryDetail id={decodeURIComponent(historyMatch[1])} />
+          : path === "/kho"
+            ? <Stock />
+            : path === "/nhat-ky"
+              ? <CallLog />
+              : path === "/nhat-ky-thao-tac"
+                ? <Audit />
+                : <NotFound />;
 
   return (
     <SessionProvider value={{ settings: settings!, facility: config!.facility, expire, setCrumbs }}>
-      <AppShell product="Pharmacy" nav={NAV} current={CURRENT[path] ?? ""} onNavigate={navigate} breadcrumbs={crumbs}
+      <AppShell product="Pharmacy" nav={NAV} current={historyMatch ? "/lich-su" : CURRENT[path] ?? ""} onNavigate={navigate} breadcrumbs={crumbs}
         status={<Badge tone="neutral">Bản demo</Badge>}
         unit={{ name: "Junctura Pharmacy", stations: [{ id: "main", name: config!.facility }] }}
         user={{ name: me.displayName, role: ROLE_LABEL[me.role] ?? me.role }} onSignOut={signOut}>

@@ -35,12 +35,12 @@ const overview = (overrides: Partial<OverviewResult> = {}): OverviewResult => ({
   },
   recent: [
     {
-      prescriptionCode: "DT-2026-004521", outcome: "dispensed", pharmacist: "duocsi.nhathuoc",
+      id: "rec-1", prescriptionCode: "DT-2026-004521", outcome: "dispensed", pharmacist: "duocsi.nhathuoc",
       at: "2026-11-12T02:30:00.000Z",
       items: [{ name: "Clopidogrel", strength: "75 mg", quantity: 30, lot: "LOT-A" }],
     },
     {
-      prescriptionCode: "DT-2026-009999", outcome: "refused", reason: "Sai liều",
+      id: "rec-2", prescriptionCode: "DT-2026-009999", outcome: "refused", reason: "Sai liều",
       pharmacist: "duocsi.nhathuoc", at: "2026-11-12T01:00:00.000Z",
     },
   ],

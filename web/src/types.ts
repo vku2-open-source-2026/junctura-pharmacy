@@ -95,16 +95,33 @@ export interface RefuseResult {
 }
 
 export interface HistoryItem {
+  id: string;
   prescriptionCode: string;
   outcome: "dispensed" | "refused";
   reason?: string;
   items?: DispensedItem[];
+  allergyOverride?: string;
   pharmacist: string;
   at: string;
 }
 
 export interface HistoryResult {
   items: HistoryItem[];
+}
+
+export type AuditAction = "verify" | "dispense" | "refuse" | "stock-receive" | "stock-adjust";
+
+export interface AuditItem {
+  action: AuditAction;
+  by: string;
+  displayName: string;
+  prescriptionCode?: string;
+  detail: string;
+  at: string;
+}
+
+export interface AuditResult {
+  items: AuditItem[];
 }
 
 export interface CallLogItem {

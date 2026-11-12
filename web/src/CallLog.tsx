@@ -54,7 +54,7 @@ export function CallLog() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <PageHeader title="Nhật ký" description="Các lần nhà thuốc gọi Junctura, mới nhất trước." />
+      <PageHeader title="Nhật ký Junctura" description="Các lần nhà thuốc gọi Junctura, mới nhất trước." />
       <p className="text-sm text-muted">Nhật ký không lưu thông tin người bệnh.</p>
       <Remote state={state} reload={reload}>
         {log => log.items.length === 0

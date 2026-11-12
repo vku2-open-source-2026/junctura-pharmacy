@@ -29,6 +29,11 @@ const COLUMNS: Column<HistoryItem>[] = [
       : item.reason ?? "—",
   },
   { key: "pharmacist", header: "Dược sĩ", render: item => item.pharmacist },
+  {
+    key: "open",
+    header: "Chi tiết",
+    render: item => <Button variant="secondary" onClick={() => navigate(`/lich-su/${item.id}`)}>Xem</Button>,
+  },
 ];
 
 export function History() {
@@ -48,7 +53,7 @@ export function History() {
               Mỗi lần phát hoặc từ chối sẽ hiện ở đây sau khi bạn xác nhận.
             </EmptyState>
           )
-          : <DataTable caption="Lịch sử phát thuốc" columns={COLUMNS} rows={history.items} rowKey={item => `${item.prescriptionCode}-${item.at}`} />}
+          : <DataTable caption="Lịch sử phát thuốc" columns={COLUMNS} rows={history.items} rowKey={item => item.id} />}
       </Remote>
     </div>
   );

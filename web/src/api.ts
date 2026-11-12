@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { freshAccessToken, type OidcSettings } from "./auth";
 import type {
-  CallLogResult, DispenseInput, DispenseResult, HistoryResult, Me, OverviewResult, PublicConfig,
-  ReceiveStockInput, RefuseInput, RefuseResult, StockResult, VerificationResult, VerifyInput,
+  AuditResult, CallLogResult, DispenseInput, DispenseResult, HistoryItem, HistoryResult, Me, OverviewResult,
+  PublicConfig, ReceiveStockInput, RefuseInput, RefuseResult, StockResult, VerificationResult, VerifyInput,
 } from "./types";
 
 export class ApiError extends Error {
@@ -48,6 +48,10 @@ export const refuse = (settings: OidcSettings, input: RefuseInput) =>
   request<RefuseResult>("/api/refuse", settings, { method: "POST", body: input });
 export const getHistory = (settings: OidcSettings, signal?: AbortSignal) =>
   request<HistoryResult>("/api/history", settings, { signal });
+export const getHistoryItem = (settings: OidcSettings, id: string, signal?: AbortSignal) =>
+  request<HistoryItem>(`/api/history/${encodeURIComponent(id)}`, settings, { signal });
+export const getAudit = (settings: OidcSettings, signal?: AbortSignal) =>
+  request<AuditResult>("/api/audit", settings, { signal });
 export const getCallLog = (settings: OidcSettings, signal?: AbortSignal) =>
   request<CallLogResult>("/api/call-log", settings, { signal });
 export const getStock = (settings: OidcSettings, signal?: AbortSignal) =>
