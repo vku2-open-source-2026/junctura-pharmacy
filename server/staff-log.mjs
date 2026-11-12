@@ -3,7 +3,7 @@
 import { listRecords, storeUnavailable } from "./records.mjs";
 
 const COLLECTION = "staff-actions";
-export const ACTIONS = ["verify", "dispense", "refuse", "stock-receive", "stock-adjust"];
+export const ACTIONS = ["verify", "dispense", "refuse", "stock-receive", "stock-adjust", "settings-update"];
 
 /**
  * Who did what in the pharmacy app and when. Unlike the call log (what the pharmacy asked

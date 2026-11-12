@@ -5,6 +5,7 @@ import { extname, join, normalize, sep } from "node:path";
 import { AuthError } from "./jwt.mjs";
 import { buildOverview } from "./overview.mjs";
 import { buildReport, reportCsv, reportRange } from "./report.mjs";
+import { validSettings } from "./settings.mjs";
 import { isLowercaseUuid, isValidPrescriptionCode, parsePrescriptionQr } from "./prescription-qr.mjs";
 import { runVerification } from "./verify.mjs";
 
@@ -22,6 +23,7 @@ const API_METHODS = new Map([
   ["/api/audit", "GET, HEAD"],
   ["/api/report", "GET, HEAD"],
   ["/api/report.csv", "GET, HEAD"],
+  ["/api/settings", "GET, HEAD, PUT"],
 ]);
 
 const HISTORY_ITEM = /^\/api\/history\/([A-Za-z0-9_-]{1,80})$/;
@@ -115,7 +117,7 @@ function isIsoDate(value) {
  * built web UI. Staff are the demo accounts of this application; every other signed-in
  * person is refused.
  */
-export function createApp({ config, data, verifier, capabilities, dispensing, callLog, stock, staffLog }) {
+export function createApp({ config, data, verifier, capabilities, dispensing, callLog, stock, staffLog, settings }) {
   const base = securityHeaders(config);
 
   const send = (res, status, body, headers = {}) => {
@@ -317,6 +319,23 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     }
   }
 
+  async function settingsRoute(req, res, user) {
+    if (!settings) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      if (req.method !== "PUT") return send(res, 200, await settings.current());
+      if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
+      const parsed = await readJsonBody(req);
+      if (parsed.status === 413) return send(res, 413, { error: "payload-too-large" });
+      const values = parsed.status ? null : validSettings(parsed.body);
+      if (!values) return send(res, 400, { error: "invalid-request" });
+      const saved = await settings.save(values, user.username);
+      await logAction(user, "settings-update", undefined, `Sắp hết khi còn ≤ ${values.lowStock} · sắp hết hạn trong ${values.expiringDays} ngày`);
+      return send(res, 200, saved);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
   async function reportRoute(req, res, url) {
     if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
     const range = reportRange({ from: url.searchParams.get("from") ?? undefined, to: url.searchParams.get("to") ?? undefined });
@@ -458,6 +477,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       if (!user || user.role !== "pharmacist") return send(res, 403, { error: "not-pharmacist" });
       if (historyMatch) return historyItem(req, res, historyMatch[1]);
       if (url.pathname === "/api/audit") return auditRoute(req, res);
+      if (url.pathname === "/api/settings") return settingsRoute(req, res, user);
       if (url.pathname === "/api/report" || url.pathname === "/api/report.csv") return reportRoute(req, res, url);
       if (url.pathname === "/api/verify") return verify(req, res, user);
       if (url.pathname === "/api/dispense") return dispense(req, res, user);
