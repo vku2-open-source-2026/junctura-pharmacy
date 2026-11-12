@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
   AlertBanner, AllergyStatus, Badge, Button, Card, DataTable, Dialog, ErrorState, PageHeader,
-  PermissionState, SourceBadge, TextAreaField, TextField, formatDateTime, type Column,
+  PermissionState, SourceBadge, TextAreaField, TextField, formatDate, formatDateTime, type Column,
 } from "@junctura/health-ui";
 import { ScanLine } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { ApiError, dispense, refuse, verifyPrescription } from "./api";
-import { formatDate } from "./format";
 import { useSession } from "./session";
 import type {
   Blocker, CapabilityStatus, DispenseItem, PrescriptionItem, VerificationResult, VerifyInput,
@@ -50,6 +49,8 @@ function dispenseError(error: unknown): string {
     if (error.code === "not-dispensable") return blockersText(error.blockers) || "Đơn không thể phát.";
     if (error.code === "already-dispensed") return "Đơn đã được phát. Không thể phát lại.";
     if (error.code === "items-mismatch") return "Số lượng hoặc số lô chưa khớp với đơn. Kiểm tra lại.";
+    if (error.code === "lot-expired") return "Lô này đã hết hạn. Không phát thuốc từ lô này; chọn lô khác.";
+    if (error.code === "insufficient-stock") return "Lô này không đủ hàng trong kho. Kiểm tra lại số lô hoặc số lượng.";
     if (error.status === 400) return "Thông tin phát thuốc chưa hợp lệ. Kiểm tra lại.";
   }
   return requestError(error, "Không phát được thuốc");

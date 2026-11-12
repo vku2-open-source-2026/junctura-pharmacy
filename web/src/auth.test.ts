@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
 import { buildAuthorizeUrl, buildLogoutUrl, createPkce } from "./auth";
-import { formatDate } from "./format";
 
 const settings = { issuer: "https://id.example.test/identity/realms/junctura", clientId: "health-pharmacy-web" };
 
@@ -36,13 +35,5 @@ describe("authorize and logout URLs", () => {
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe("http://localhost:5184/");
     expect(url.searchParams.get("id_token_hint")).toBe("id-token");
     expect(new URL(buildLogoutUrl(settings, "http://localhost:5184/")).searchParams.has("id_token_hint")).toBe(false);
-  });
-});
-
-describe("formatting", () => {
-  it("formats dates for Vietnamese staff", () => {
-    expect(formatDate("2026-10-28")).toBe("28/10/2026");
-    expect(formatDate("2026-10-28T09:15:00.000Z")).toBe("28/10/2026");
-    expect(formatDate(null)).toBe("—");
   });
 });
