@@ -8,12 +8,24 @@ const COLLECTION = "dispensations";
 export function createDispensingStore({ client }) {
   return Object.freeze({
     async add(entry) {
+      let record;
       try {
-        await client.createRecord(COLLECTION, entry);
+        record = await client.createRecord(COLLECTION, entry);
       } catch {
         throw storeUnavailable();
       }
-      return entry;
+      return typeof record?.id === "string" ? { ...entry, id: record.id } : entry;
+    },
+
+    /** One record by id, or null when it does not exist. */
+    async get(id) {
+      try {
+        const record = await client.getRecord(COLLECTION, id);
+        return record?.data && typeof record.data === "object" ? { ...record.data, id: record.id ?? id } : null;
+      } catch (error) {
+        if (error?.status === 404) return null;
+        throw storeUnavailable();
+      }
     },
 
     async list() {

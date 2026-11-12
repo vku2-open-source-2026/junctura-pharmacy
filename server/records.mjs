@@ -9,12 +9,12 @@ export function storeUnavailable() {
   return error;
 }
 
-/** Lists the record bodies of one collection (the record store returns at most 100). */
+/** Lists the record bodies of one collection with their record id (the record store returns at most 100). */
 export async function listRecords(client, collection) {
   const response = await client.request(`/v2/data/${collection}`);
   if (response.ok === false) throw storeUnavailable();
   const body = await response.json();
   return (Array.isArray(body?.items) ? body.items : [])
-    .map(item => item?.data)
-    .filter(entry => entry && typeof entry === "object" && !Array.isArray(entry));
+    .filter(item => item?.data && typeof item.data === "object" && !Array.isArray(item.data))
+    .map(item => (typeof item.id === "string" ? { ...item.data, id: item.id } : { ...item.data }));
 }

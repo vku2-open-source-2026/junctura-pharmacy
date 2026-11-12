@@ -17,7 +17,10 @@ const API_METHODS = new Map([
   ["/api/call-log", "GET, HEAD"],
   ["/api/stock", "GET, HEAD, POST"],
   ["/api/overview", "GET, HEAD"],
+  ["/api/audit", "GET, HEAD"],
 ]);
+
+const HISTORY_ITEM = /^\/api\/history\/([A-Za-z0-9_-]{1,80})$/;
 
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -108,7 +111,7 @@ function isIsoDate(value) {
  * built web UI. Staff are the demo accounts of this application; every other signed-in
  * person is refused.
  */
-export function createApp({ config, data, verifier, capabilities, dispensing, callLog, stock }) {
+export function createApp({ config, data, verifier, capabilities, dispensing, callLog, stock, staffLog }) {
   const base = securityHeaders(config);
 
   const send = (res, status, body, headers = {}) => {
@@ -142,6 +145,13 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     }).catch(error => console.error(error?.code ?? "call-log-unavailable"))));
   }
 
+  // Staff actions are logged best effort: a failure never changes the answer.
+  async function logAction(user, action, prescriptionCode, detail) {
+    if (!staffLog) return;
+    await staffLog.add({ action, by: user.username, displayName: user.displayName, prescriptionCode, detail, at: new Date().toISOString() })
+      .catch(error => console.error(error?.code ?? "staff-log-unavailable"));
+  }
+
   async function verify(req, res, user) {
     if (!capabilities) return send(res, 503, { error: "junctura-not-configured" });
     if (!isJsonRequest(req)) return send(res, 415, { error: "unsupported-media-type" });
@@ -155,6 +165,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
 
     const result = await runVerification({ capabilities, ...request });
     await recordCalls(result, user);
+    await logAction(user, "verify", result.prescriptionCode, result.dispensable ? "Đơn phát được" : "Đơn chưa phát được");
     return send(res, 200, result);
   }
 
@@ -238,8 +249,10 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
         pharmacist: user.username,
         at: new Date().toISOString(),
       };
-      await dispensing.add(entry);
-      const { patient: omitted, ...visible } = entry;
+      const saved = await dispensing.add(entry);
+      await logAction(user, "dispense", entry.prescriptionCode,
+        `${items.length} thuốc${conflicts.length ? " · có ghi lý do vì trùng dị ứng" : ""}`);
+      const { patient: omitted, ...visible } = saved;
       return send(res, 201, visible);
     } catch (error) {
       return storeFailure(res, error);
@@ -269,8 +282,9 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
         pharmacist: user.username,
         at: new Date().toISOString(),
       };
-      await dispensing.add(entry);
-      const { patient: omitted, ...visible } = entry;
+      const saved = await dispensing.add(entry);
+      await logAction(user, "refuse", entry.prescriptionCode, "Từ chối phát");
+      const { patient: omitted, ...visible } = saved;
       return send(res, 201, visible);
     } catch (error) {
       return storeFailure(res, error);
@@ -282,6 +296,27 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
     try {
       const items = (await dispensing.list()).map(({ patient, ...entry }) => entry);
       return send(res, 200, { items });
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function historyItem(req, res, id) {
+    if (!dispensing) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      const entry = await dispensing.get(id);
+      if (!entry) return send(res, 404, { error: "not-found" });
+      const { patient: omitted, ...visible } = entry;
+      return send(res, 200, visible);
+    } catch (error) {
+      return storeFailure(res, error);
+    }
+  }
+
+  async function auditRoute(req, res) {
+    if (!staffLog) return send(res, 503, { error: "junctura-not-configured" });
+    try {
+      return send(res, 200, { items: await staffLog.list() });
     } catch (error) {
       return storeFailure(res, error);
     }
@@ -317,6 +352,7 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
 
     try {
       const entry = await stock.receive({ name, strength, lot, quantity, expiresAt, receivedBy: user.username });
+      await logAction(user, "stock-receive", undefined, `Nhập ${quantity} ${name} ${strength} · lô ${lot}`);
       return send(res, 201, entry);
     } catch (error) {
       return storeFailure(res, error);
@@ -362,8 +398,11 @@ export function createApp({ config, data, verifier, capabilities, dispensing, ca
       if (!(error instanceof AuthError)) console.error(`token check failed: ${error.message}`);
       return send(res, 401, { error: "unauthenticated" }, { "www-authenticate": "Bearer" });
     }
-    if (API_METHODS.has(url.pathname)) {
+    const historyMatch = HISTORY_ITEM.exec(url.pathname);
+    if (API_METHODS.has(url.pathname) || historyMatch) {
       if (!user || user.role !== "pharmacist") return send(res, 403, { error: "not-pharmacist" });
+      if (historyMatch) return historyItem(req, res, historyMatch[1]);
+      if (url.pathname === "/api/audit") return auditRoute(req, res);
       if (url.pathname === "/api/verify") return verify(req, res, user);
       if (url.pathname === "/api/dispense") return dispense(req, res, user);
       if (url.pathname === "/api/refuse") return refuse(req, res, user);
